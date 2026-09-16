@@ -7,8 +7,12 @@
     "storage"
   ],
   "host_permissions": [
+    "https://openrouter.ai/*",
     "https://api.openrouter.ai/*"
   ],
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
   "options_page": "src/options/options.html",
   "action": {
     "default_title": "Subtitle Translator",
@@ -17,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["*://www.ardmediathek.de/*"],
-      "js": ["src/parser/parser.js", "src/storage/storage.js", "src/content/content.js"],
+      "js": ["src/parser/parser.js", "src/storage/storage.js", "src/services/tokenize.js", "src/content/content.js"],
       "run_at": "document_idle"
     }
   ]

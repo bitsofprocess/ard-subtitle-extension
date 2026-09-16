@@ -113,8 +113,13 @@
       '    pointer-events: auto;' +
       '  }' +
       '  #__st_gloss__ .__st_gloss_w { color: #e94560; font-weight: 700; margin-bottom: 4px; }' +
-      '  #__st_gloss__ .__st_gloss_lemma { color: #a0a0b0; font-size: 0.85em; }' +
+      '  #__st_gloss__ .__st_gloss_lemma { color: #ffffff; font-weight: 700; font-size: 1.05em; }' +
       '  #__st_gloss__ .__st_gloss_gloss { color: #e0e0e0; margin-top: 4px; }' +
+      '  #__st_gloss__ .__st_gloss_note { color: #888; font-size: 0.8em; margin-top: 4px; font-style: italic; }' +
+      '  #__st_gloss__ .__st_gloss_loading { color: #888; }' +
+      '  #__st_gloss__ .__st_gloss_error { color: #e94560; }' +
+      '  #__st_gloss__ .__st_gloss_retry { color: #e94560; cursor: pointer; text-decoration: underline; }' +
+      '  .__st_word_related__ { background: rgba(233,69,96,0.35); border-radius: 3px; }' +
       '</style>' +
       '<div id="__st_cue__"></div>' +
       '<div id="__st_gloss__"></div>';
@@ -175,49 +180,48 @@
       cueEl.appendChild(tDiv);
     }
 
-    // Split cue text into lines (for speaker-change <br/> in source) and
-    // then into words.  We keep a running token index that maps to cue.tokens.
-    var lines = cue.text.split('\n');
-    var tokenIdx = 0;
+    // Use the shared tokenizer so word indices match the gloss cache.
+    var tokens = SubtitleServices.tokenize(cue.text);
+    var currentLine = 0;
 
-    for (var li = 0; li < lines.length; li++) {
-      if (li > 0) {
+    for (var ti = 0; ti < tokens.length; ti++) {
+      var tok = tokens[ti];
+
+      // Insert <br> between lines.
+      while (tok.line > currentLine) {
         cueEl.appendChild(document.createElement('br'));
+        currentLine++;
       }
 
-      var line = lines[li];
-      // Split on word boundaries: sequences of non-whitespace.
-      var parts = [];
-      var re = /(\S+)|(\s+)/g;
-      var m;
-      while ((m = re.exec(line)) !== null) {
-        if (m[1] !== undefined) {
-          parts.push({ type: 'word', text: m[1] });
-        } else {
-          parts.push({ type: 'space', text: m[2] });
-        }
+      // Insert whitespace between consecutive tokens on the same line.
+      if (ti > 0 && tokens[ti - 1].line === tok.line) {
+        cueEl.appendChild(document.createTextNode(' '));
       }
 
-      for (var pi = 0; pi < parts.length; pi++) {
-        var part = parts[pi];
-        if (part.type === 'space') {
-          cueEl.appendChild(document.createTextNode(part.text));
-        } else {
-          var span = document.createElement('span');
-          span.className = '__st_word__';
-          span.textContent = part.text;
-          span.dataset.tokenIdx = tokenIdx;
-          span.addEventListener('click', (function (idx, event) {
-            onWordClick(event, cueIdx, idx);
-          }).bind(null, tokenIdx));
-          cueEl.appendChild(span);
-          tokenIdx++;
-        }
+      var span = document.createElement('span');
+      span.className = '__st_word__';
+      span.textContent = tok.raw;
+      span.dataset.cueIndex = cueIdx;
+      span.dataset.tokenIndex = tok.i;
+
+      if (tok.clickable) {
+        span.addEventListener('click', (function (cIdx, tIdx, event) {
+          onWordClick(event, cIdx, tIdx);
+        }).bind(null, cueIdx, tok.i));
+      } else {
+        // Non-clickable tokens get a muted style but no click handler.
+        span.style.cursor = 'default';
+        span.style.color = '#999';
       }
+
+      cueEl.appendChild(span);
     }
   }
 
   // ── Gloss popup ──────────────────────────────────────────────────────
+
+  var glossRequestId = 0;      // incremented per click — ignore stale responses
+  var currentGlossToken = null; // { cueIdx, tokenIdx } of visible gloss
 
   function onWordClick(event, cueIdx, tokenIdx) {
     event.stopPropagation();
@@ -227,8 +231,11 @@
 
     var glossEl = document.getElementById('__st_gloss__');
 
-    // If the gloss is already visible, toggle it off.
-    if (glossEl.style.display === 'block') {
+    // If the gloss is already visible for this same word, toggle it off.
+    if (glossEl.style.display === 'block' &&
+        currentGlossToken &&
+        currentGlossToken.cueIdx === cueIdx &&
+        currentGlossToken.tokenIdx === tokenIdx) {
       hideGloss();
       return;
     }
@@ -238,20 +245,167 @@
       video.pause();
     }
 
-    // Show sentence-level translation (per-word glosses are Phase 4).
-    var word = cue.tokens
-      ? (cue.tokens[tokenIdx] ? cue.tokens[tokenIdx].w : event.target.textContent)
-      : event.target.textContent;
+    // Clear any previous related highlights & stale request.
+    hideRelatedHighlights();
+    glossRequestId++;
+    var reqId = glossRequestId;
+    currentGlossToken = { cueIdx: cueIdx, tokenIdx: tokenIdx };
 
-    glossEl.innerHTML =
-      '<div class="__st_gloss_w">' + escapeHTML(word) + '</div>' +
-      '<div class="__st_gloss_gloss">' +
-        (cue.translation && cue.translation !== cue.text
-          ? escapeHTML(cue.translation)
-          : '(no translation yet — re-run import page)') +
-      '</div>';
+    // Get the word text from the tokenizer.
+    var tokens = SubtitleServices.tokenize(cue.text);
+    var wordRaw = (tokens[tokenIdx] ? tokens[tokenIdx].raw : event.target.textContent);
 
+    // Show popup immediately with loading state.
+    showGlossPopup(event, wordRaw, cue, null);
+
+    // Try cache first (instant), then background worker.
+    requestGloss(cueIdx, tokenIdx, reqId, event);
+  }
+
+  /**
+   * Check chrome.storage.local for a cached gloss, then fall back
+   * to the background service worker for a live LLM call.
+   */
+  async function requestGloss(cueIdx, tokenIdx, reqId, event) {
+    var normalized = normalizeUrl(location.href);
+
+    // 1. Check local cache (instant, no message round-trip).
+    try {
+      var cached = await SubtitleStorage.getGloss(normalized, cueIdx, tokenIdx);
+      if (cached && reqId === glossRequestId) {
+        applyGlossResult(cached, true, event);
+        return;
+      }
+    } catch (e) { /* ignore cache errors, fall through */ }
+
+    // 2. Request from background service worker.
+    try {
+      var response = await chrome.runtime.sendMessage({
+        type: 'GET_GLOSS',
+        videoUrl: normalized,
+        cueIndex: cueIdx,
+        tokenIndex: tokenIdx
+      });
+      // Ignore stale responses.
+      if (reqId !== glossRequestId) return;
+
+      if (response && response.ok) {
+        applyGlossResult(response.gloss, response.cached, event);
+      } else {
+        showGlossError(event, cueIdx, tokenIdx, response ? response.error : 'Unknown error');
+      }
+    } catch (err) {
+      if (reqId !== glossRequestId) return;
+      showGlossError(event, cueIdx, tokenIdx, err.message || String(err));
+    }
+  }
+
+  /**
+   * Apply a successful gloss result to the popup.
+   */
+  function applyGlossResult(gloss, wasCached, event) {
+    var cue = currentGlossToken ? cues[currentGlossToken.cueIdx] : null;
+    if (!cue) return;
+
+    var tokens = SubtitleServices.tokenize(cue.text);
+    var tokenIdx = currentGlossToken.tokenIdx;
+    var wordRaw = (tokens[tokenIdx] ? tokens[tokenIdx].raw : '');
+
+    showGlossPopup(event, wordRaw, cue, gloss);
+
+    // Highlight related words.
+    if (gloss.related && gloss.related.length > 0) {
+      highlightRelated(currentGlossToken.cueIdx, gloss.related);
+    }
+  }
+
+  /**
+   * Show the gloss popup with content.
+   * If glossData is null, shows a loading state.
+   */
+  function showGlossPopup(event, wordRaw, cue, glossData) {
+    var glossEl = document.getElementById('__st_gloss__');
+
+    var html = '<div class="__st_gloss_w">' + escapeHTML(wordRaw) + '</div>';
+
+    if (glossData) {
+      // Filled-in gloss from cache or LLM.
+      html += '<div class="__st_gloss_lemma">' + escapeHTML(glossData.lemma) + '</div>';
+      html += '<div class="__st_gloss_gloss">' + escapeHTML(glossData.gloss) + '</div>';
+      if (glossData.note) {
+        html += '<div class="__st_gloss_note">' + escapeHTML(glossData.note) + '</div>';
+      }
+    } else {
+      // Loading state.
+      html += '<div class="__st_gloss_lemma"><span class="__st_gloss_loading">…</span></div>';
+    }
+
+    glossEl.innerHTML = html;
     positionGloss(event, glossEl);
+  }
+
+  /**
+   * Show an error state in the popup with a Retry link.
+   */
+  function showGlossError(event, cueIdx, tokenIdx, errorMsg) {
+    var glossEl = document.getElementById('__st_gloss__');
+    var cue = cues[cueIdx];
+
+    var html = '<div class="__st_gloss_error">';
+
+    if (errorMsg === 'NO_API_KEY') {
+      html += 'No API key set. <a class="__st_gloss_retry" href="' +
+        chrome.runtime.getURL('src/options/options.html') + '" target="_blank">Open Settings</a>';
+    } else {
+      html += escapeHTML(errorMsg.substring(0, 120));
+      html += ' <span class="__st_gloss_retry" id="__st_gloss_retry_btn__">Retry</span>';
+    }
+
+    html += '</div>';
+
+    glossEl.innerHTML = html;
+    positionGloss(event, glossEl);
+
+    // Wire retry button.
+    var retryBtn = document.getElementById('__st_gloss_retry_btn__');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        glossRequestId++;
+        var reqId = glossRequestId;
+        // Show loading again.
+        var tokens = SubtitleServices.tokenize(cue.text);
+        var wordRaw = (tokens[tokenIdx] ? tokens[tokenIdx].raw : '');
+        showGlossPopup(event, wordRaw, cue, null);
+        requestGloss(cueIdx, tokenIdx, reqId, event);
+      });
+    }
+  }
+
+  /**
+   * Add highlight class to related word spans.
+   */
+  function highlightRelated(cueIdx, tokenIndices) {
+    var cueEl = document.getElementById('__st_cue__');
+    if (!cueEl) return;
+    var spans = cueEl.querySelectorAll('.__st_word__');
+    for (var i = 0; i < spans.length; i++) {
+      var span = spans[i];
+      if (parseInt(span.dataset.cueIndex) === cueIdx &&
+          tokenIndices.indexOf(parseInt(span.dataset.tokenIndex)) !== -1) {
+        span.classList.add('__st_word_related__');
+      }
+    }
+  }
+
+  /**
+   * Remove related highlights from all word spans.
+   */
+  function hideRelatedHighlights() {
+    var spans = document.querySelectorAll('.__st_word_related__');
+    for (var i = 0; i < spans.length; i++) {
+      spans[i].classList.remove('__st_word_related__');
+    }
   }
 
   function positionGloss(event, glossEl) {
@@ -285,6 +439,8 @@
   function hideGloss() {
     var glossEl = document.getElementById('__st_gloss__');
     if (glossEl) glossEl.style.display = 'none';
+    hideRelatedHighlights();
+    currentGlossToken = null;
   }
 
   function escapeHTML(s) {

@@ -11,6 +11,7 @@
 
   var STORAGE_KEY_API_KEY = 'openrouter_api_key';
   var STORAGE_PREFIX_CUES = 'cues:';   // cues:<videoUrl>
+  var STORAGE_PREFIX_GLOSSES = 'glosses:'; // glosses:<videoUrl>
 
   /**
    * Get the stored OpenRouter API key.
@@ -79,6 +80,78 @@
     await chrome.storage.local.remove(STORAGE_PREFIX_CUES + videoUrl);
   }
 
+  // ── Gloss cache ──────────────────────────────────────────────────
+  //
+  // Glosses are stored under a separate key so we never rewrite the
+  // full cue array on every click.  Key = "glosses:<videoUrl>".
+  // Value = { "<cueIndex>:<tokenIndex>": { lemma, gloss, related, note, model, v: 1 } }
+  //
+  // Writes are serialised through a per-URL promise queue so
+  // concurrent saves cannot overwrite each other.
+
+  var _glossWriteQueues = {};  // url → Promise chain
+
+  /**
+   * Get ALL gloss entries for a video URL.
+   * @returns {Promise<Object>}
+   */
+  async function getGlosses(videoUrl) {
+    var result = await chrome.storage.local.get(STORAGE_PREFIX_GLOSSES + videoUrl);
+    return result[STORAGE_PREFIX_GLOSSES + videoUrl] || {};
+  }
+
+  /**
+   * Get a single gloss entry (or null).
+   */
+  async function getGloss(videoUrl, cueIndex, tokenIndex) {
+    var key = cueIndex + ':' + tokenIndex;
+    var all = await getGlosses(videoUrl);
+    return all[key] || null;
+  }
+
+  /**
+   * Merge entries into the gloss map.  Existing entries are never
+   * replaced — first writer wins.  All writes for the same URL are
+   * serialised so concurrent calls cannot overwrite each other.
+   *
+   * @param {Object} entries — { "cueIdx:tokIdx": { lemma, gloss, ... } }
+   */
+  async function saveGlosses(videoUrl, entries) {
+    var storageKey = STORAGE_PREFIX_GLOSSES + videoUrl;
+
+    // Build a promise chain per URL.
+    var prev = _glossWriteQueues[videoUrl] || Promise.resolve();
+
+    var next = prev.then(async function () {
+      var result = await chrome.storage.local.get(storageKey);
+      var current = result[storageKey] || {};
+
+      // Merge: only add keys that don't already exist.
+      var changed = false;
+      var keys = Object.keys(entries);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (!(k in current)) {
+          current[k] = entries[k];
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        var obj = {};
+        obj[storageKey] = current;
+        await chrome.storage.local.set(obj);
+      }
+    }).catch(function (err) {
+      // Clear the queue on error so subsequent writes aren't blocked.
+      delete _glossWriteQueues[videoUrl];
+      throw err;
+    });
+
+    _glossWriteQueues[videoUrl] = next;
+    return next;
+  }
+
   var ns = g.SubtitleStorage || {};
   ns.getApiKey = getApiKey;
   ns.saveApiKey = saveApiKey;
@@ -86,5 +159,8 @@
   ns.saveCues = saveCues;
   ns.listVideoUrls = listVideoUrls;
   ns.deleteCues = deleteCues;
+  ns.getGlosses = getGlosses;
+  ns.getGloss = getGloss;
+  ns.saveGlosses = saveGlosses;
   g.SubtitleStorage = ns;
 })();
