@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Subtitle Translator",
+  "version": "0.1.0",
+  "description": "Overlays translated subtitles on videos. Click any word for a contextual gloss.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.openrouter.ai/*"
+  ],
+  "options_page": "src/options/options.html",
+  "action": {
+    "default_title": "Subtitle Translator",
+    "default_popup": "src/popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.ardmediathek.de/*"],
+      "js": ["src/parser/parser.js", "src/storage/storage.js", "src/content/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

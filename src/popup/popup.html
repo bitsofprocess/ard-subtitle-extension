@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subtitle Translator</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --border: #0f3460;
+      --text: #e0e0e0;
+      --muted: #a0a0b0;
+      --accent: #e94560;
+      --success: #2ecc71;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      min-height: 180px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 0.85rem;
+    }
+    h1 { font-size: 1rem; margin-bottom: 14px; color: var(--accent); }
+    p { color: var(--muted); margin-bottom: 14px; line-height: 1.4; }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    button:hover { opacity: 0.9; }
+
+    .settings-link {
+      display: block;
+      text-align: center;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .settings-link a { color: var(--accent); }
+
+    #storedInfo {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎬 Subtitle Translator</h1>
+  <p>Import a subtitle XML file, translate it with DeepSeek, and overlay it on the video.</p>
+
+  <button id="openBtn">Open Translator</button>
+
+  <div class="settings-link">
+    <a href="#" id="settingsLink">⚙️ Settings (API key)</a>
+  </div>
+
+  <div id="storedInfo"></div>
+
+  <script src="../storage/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

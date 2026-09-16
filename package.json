@@ -1,0 +1,12 @@
+{
+  "name": "subtitle-extension",
+  "version": "0.1.0",
+  "description": "Chrome extension for word-by-word subtitle translation while watching videos",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@xmldom/xmldom": "^0.8.10"
+  }
+}

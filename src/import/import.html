@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subtitle Translator — Import</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --border: #0f3460;
+      --text: #e0e0e0;
+      --muted: #a0a0b0;
+      --accent: #e94560;
+      --accent-dim: #b03050;
+      --success: #2ecc71;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 540px;
+      margin: 40px auto;
+      padding: 24px;
+      font-size: 0.9rem;
+    }
+    h1 { font-size: 1.3rem; margin-bottom: 24px; color: var(--accent); }
+    h2 { font-size: 0.95rem; margin-bottom: 8px; color: var(--text); }
+
+    /* Steps */
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .step-num {
+      display: inline-block;
+      width: 22px; height: 22px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 22px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    .step h2 { display: inline; }
+
+    /* Drop zone */
+    #dropZone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-top: 10px;
+    }
+    #dropZone.drag-over {
+      border-color: var(--accent);
+      background: rgba(233, 69, 96, 0.08);
+    }
+    #dropZone.has-file {
+      border-color: var(--success);
+      border-style: solid;
+    }
+    #parseResult {
+      margin-top: 8px;
+      font-size: 0.8rem;
+    }
+    #parseResult.ok { color: var(--success); }
+    #parseResult.err { color: var(--accent); }
+
+    /* Video URL */
+    #videoUrl {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    #videoUrl:focus { outline: none; border-color: var(--accent); }
+
+    /* Translate button */
+    #translateBtn {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    #translateBtn:hover:not(:disabled) { opacity: 0.9; }
+    #translateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Progress */
+    #progressSection {
+      display: none;
+    }
+    #progressBar {
+      width: 100%;
+      height: 8px;
+      background: var(--surface);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0 8px 0;
+    }
+    #progressFill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #progressDetail {
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Log */
+    #log {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.5;
+      display: none;
+    }
+    #log .log-ok { color: var(--success); }
+    #log .log-warn { color: #f39c12; }
+    #log .log-err { color: var(--accent); }
+
+    /* Done */
+    #doneSection {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    #doneSection .emoji { font-size: 2rem; }
+    #doneSection p { color: var(--muted); margin-top: 8px; }
+
+    /* Settings warning */
+    #noKeyWarning {
+      background: rgba(233, 69, 96, 0.12);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 0.8rem;
+      display: none;
+    }
+    #noKeyWarning a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>🎬 Subtitle Translator</h1>
+
+  <div id="noKeyWarning">
+    ⚠️ No OpenRouter API key set.
+    <a href="#" id="settingsLink1">Open Settings</a> to add your key first.
+  </div>
+
+  <!-- Step 1: Import -->
+  <div class="step" id="step1">
+    <span class="step-num">1</span><h2>Import Subtitle File</h2>
+    <div id="dropZone">
+      <div>Drop an XML subtitle file here</div>
+      <div style="font-size:0.75rem;margin-top:4px;">or click to browse</div>
+      <div id="fileName" style="font-weight:600;color:var(--text);margin-top:4px;"></div>
+      <input type="file" id="fileInput" accept=".xml" hidden>
+    </div>
+    <div id="parseResult"></div>
+  </div>
+
+  <!-- Step 2: Video URL + translate -->
+  <div class="step" id="step2" style="opacity:0.5;">
+    <span class="step-num">2</span><h2>Video URL &amp; Translate</h2>
+    <input type="text" id="videoUrl" placeholder="https://www.ardmediathek.de/video/...">
+    <button id="translateBtn" disabled style="margin-top:12px;">Translate</button>
+  </div>
+
+  <!-- Progress (hidden until translating) -->
+  <div id="progressSection">
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="progressDetail">
+      <span id="progressLabel"></span>
+      <span id="progressTimer"></span>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- Done (hidden until complete) -->
+  <div id="doneSection"></div>
+
+  <script src="../parser/parser.js"></script>
+  <script src="../services/prompt.js"></script>
+  <script src="../services/validate.js"></script>
+  <script src="../services/api.js"></script>
+  <script src="../services/translate.js"></script>
+  <script src="../storage/storage.js"></script>
+  <script src="import.js"></script>
+</body>
+</html>
