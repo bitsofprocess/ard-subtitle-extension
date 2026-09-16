@@ -34,7 +34,7 @@
     overlay.style.top = r.top + 'px';
     overlay.style.width = r.width + 'px';
     overlay.style.height = r.height + 'px';
-    overlay.style.zIndex = '2147483640';
+    overlay.style.zIndex = '2147483647';
   }
 
   // ── Selectors (tried in order for video & container) ────────────────
@@ -153,6 +153,9 @@
   function renderCue(cueIdx) {
     var cueEl = document.getElementById('__st_cue__');
 
+    // Always hide the gloss when the cue changes (or disappears).
+    hideGloss();
+
     if (cueIdx < 0 || !cues || cueIdx >= cues.length) {
       cueEl.innerHTML = '';
       cueEl.style.display = 'none';
@@ -224,6 +227,12 @@
 
     var glossEl = document.getElementById('__st_gloss__');
 
+    // If the gloss is already visible, toggle it off.
+    if (glossEl.style.display === 'block') {
+      hideGloss();
+      return;
+    }
+
     // Pause so the viewer can read the gloss.
     if (video && !video.paused) {
       video.pause();
@@ -253,7 +262,7 @@
     var left = spanRect.left - overlayRect.left + spanRect.width / 2;
     var top = spanRect.top - overlayRect.top - 8;
 
-    glossEl.style.display = '';
+    glossEl.style.display = 'block';
     glossEl.style.left = '0px';
     glossEl.style.top = '-9999px';
 
@@ -295,6 +304,10 @@
       syncRaf = requestAnimationFrame(sync);
       return;
     }
+
+    // Reposition every frame — the video may have shifted due to layout
+    // changes, ads loading, or may not have been laid out yet at boot.
+    repositionOverlay();
 
     var t = video.currentTime;
     var idx = findActiveCue(t);
@@ -412,8 +425,9 @@
     document.body.appendChild(overlay);
     repositionOverlay();
 
-    // Keep position in sync on resize.
+    // Keep position in sync on resize & scroll.
     window.addEventListener('resize', repositionOverlay);
+    window.addEventListener('scroll', repositionOverlay);
     // Fullscreen: move overlay into the fullscreen element.
     document.addEventListener('fullscreenchange', onFullscreenChange);
 
@@ -427,10 +441,22 @@
   // ── Entry point ──────────────────────────────────────────────────────
 
   // Wait for the page to settle, then try to boot.
-  function scheduleBoot() {
+  function scheduleBoot(delay) {
+    if (delay === undefined) delay = 600;
     // Debounce — video players sometimes replace <video> elements during init.
     if (scheduleBoot._timer) clearTimeout(scheduleBoot._timer);
-    scheduleBoot._timer = setTimeout(tryBoot, 600);
+
+    // Enforce a maximum delay so continuous DOM mutations don't prevent
+    // boot forever (e.g. pages with ads, analytics, animation).
+    if (!scheduleBoot._firstCall) scheduleBoot._firstCall = Date.now();
+    var elapsed = Date.now() - scheduleBoot._firstCall;
+    var maxDelay = 2000;
+    if (elapsed + delay > maxDelay) delay = Math.max(0, maxDelay - elapsed);
+
+    scheduleBoot._timer = setTimeout(function () {
+      scheduleBoot._firstCall = null;
+      tryBoot();
+    }, delay);
   }
 
   // Try on load.
@@ -442,6 +468,7 @@
 
   // Watch for DOM mutations that might indicate a video player was injected
   // after page load (common on SPAs and some players).
+  // Use a short delay here — we already know something changed.
   var domObserver = new MutationObserver(function () {
     if (!video || !document.body.contains(video)) {
       // Video disappeared (navigation) — reset.
@@ -450,7 +477,7 @@
       cues = null;
       var old = document.getElementById('__subtitle_translator_overlay__');
       if (old) old.remove();
-      scheduleBoot();
+      scheduleBoot(200);
     }
   });
   domObserver.observe(document.body, { childList: true, subtree: true });
