@@ -72,7 +72,7 @@
       '    padding: 8px 16px;' +
       '    max-width: 95%;' +
       '    line-height: 1.7;' +
-      '    font-size: 26px;' +
+      '    font-size: 52px;' +
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
       '    pointer-events: auto;' +
       '  }' +
@@ -103,11 +103,10 @@
       '    border: 1px solid #e94560;' +
       '    border-radius: 6px;' +
       '    padding: 10px 14px;' +
-      '    min-width: 120px;' +
-      '    max-width: 260px;' +
+      '    max-width: 90vw;' +
       '    text-align: left;' +
-      '    font-size: 13px;' +
-      '    line-height: 1.4;' +
+      '    font-size: 36px;' +
+      '    line-height: 1.5;' +
       '    z-index: 9999;' +
       '    box-shadow: 0 4px 16px rgba(0,0,0,0.6);' +
       '    pointer-events: auto;' +
