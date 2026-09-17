@@ -119,14 +119,14 @@
       '  }' +
       '  /* Both on: always show English (default) */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="true"][data-show-english="true"] .__st_translation__ { display: block; }' +
-      '  /* Hover mode: hide English until hovering over the cue */ ' +
-      '  #__subtitle_translator_overlay__[data-hover-english="true"][data-show-german="true"][data-show-english="true"] .__st_translation__ { display: none; }' +
-      '  #__subtitle_translator_overlay__.hover-show-english .__st_translation__ { display: block !important; }' +
+      '  /* Hover mode (English enabled): hide German, reveal on hover */ ' +
+      '  #__subtitle_translator_overlay__[data-hover-english="true"][data-show-english="true"] .__st_german__ { display: none; }' +
+      '  #__subtitle_translator_overlay__.hover-show-german .__st_german__ { display: block !important; }' +
       '  /* German only: hide English completely */ ' +
       '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none !important; }' +
-      '  /* English only: always show English, hide German container */ ' +
+      '  /* English only: always show English, hide German (unless hovering) */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_translation__ { display: block !important; }' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_german__ { display: none !important; }' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]):not([data-hover-english="true"]) .__st_german__ { display: none !important; }' +
       '  /* Both off: hide everything */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_german__,' +
       '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_translation__ { display: none !important; }' +
@@ -692,12 +692,12 @@
 
     cueEl.addEventListener('mouseenter', function () {
       if (hoverEnglish) {
-        overlay.classList.add('hover-show-english');
+        overlay.classList.add('hover-show-german');
       }
     });
 
     cueEl.addEventListener('mouseleave', function () {
-      overlay.classList.remove('hover-show-english');
+      overlay.classList.remove('hover-show-german');
     });
   }
 
