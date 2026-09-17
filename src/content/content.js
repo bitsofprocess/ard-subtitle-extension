@@ -227,15 +227,15 @@
     // Full-sentence translation (revealed on hover via CSS).
     // Split on newlines or the " / " line-break marker (artifact of
     // \n → " / " sanitisation before sending to the LLM).
+    var tDiv = null;
     if (cue.translation) {
-      var tDiv = document.createElement('div');
+      tDiv = document.createElement('div');
       tDiv.className = '__st_translation__';
       var parts = cue.translation.split(/\n| \/ /);
       for (var p = 0; p < parts.length; p++) {
         if (p > 0) tDiv.appendChild(document.createElement('br'));
         tDiv.appendChild(document.createTextNode(parts[p]));
       }
-      cueEl.appendChild(tDiv);
     }
 
     // Use the shared tokenizer so word indices match the gloss cache.
@@ -280,7 +280,18 @@
       germanDiv.appendChild(span);
     }
 
-    cueEl.appendChild(germanDiv);
+    // When English is the main language (always shown, German on hover),
+    // put German on top and English at the bottom. Otherwise (German main
+    // or both shown), English on top, German at the bottom.
+    if (showEnglish && !showGerman) {
+      // English main → German on top, English on bottom.
+      cueEl.appendChild(germanDiv);
+      if (tDiv) cueEl.appendChild(tDiv);
+    } else {
+      // German main (or both) → English on top, German on bottom.
+      if (tDiv) cueEl.appendChild(tDiv);
+      cueEl.appendChild(germanDiv);
+    }
   }
 
   // ── Gloss popup ──────────────────────────────────────────────────────
