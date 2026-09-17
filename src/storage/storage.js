@@ -14,6 +14,7 @@
   var STORAGE_PREFIX_GLOSSES = 'glosses:'; // glosses:<videoUrl>
   var STORAGE_KEY_DISPLAY_GERMAN = 'display_german';
   var STORAGE_KEY_DISPLAY_ENGLISH = 'display_english';
+  var STORAGE_KEY_HOVER_ENGLISH = 'hover_english';
 
   /**
    * Get the stored OpenRouter API key.
@@ -192,6 +193,24 @@
     await chrome.storage.local.set(obj);
   }
 
+  /**
+   * Get hover-reveal preference for English.
+   * @returns {Promise<boolean>}
+   */
+  async function getHoverEnglish() {
+    var result = await chrome.storage.local.get(STORAGE_KEY_HOVER_ENGLISH);
+    return result[STORAGE_KEY_HOVER_ENGLISH] === true;
+  }
+
+  /**
+   * Save hover-reveal preference for English.
+   */
+  async function setHoverEnglish(enabled) {
+    var obj = {};
+    obj[STORAGE_KEY_HOVER_ENGLISH] = !!enabled;
+    await chrome.storage.local.set(obj);
+  }
+
   var ns = g.SubtitleStorage || {};
   ns.getApiKey = getApiKey;
   ns.saveApiKey = saveApiKey;
@@ -206,5 +225,7 @@
   ns.setDisplayGerman = setDisplayGerman;
   ns.getDisplayEnglish = getDisplayEnglish;
   ns.setDisplayEnglish = setDisplayEnglish;
+  ns.getHoverEnglish = getHoverEnglish;
+  ns.setHoverEnglish = setHoverEnglish;
   g.SubtitleStorage = ns;
 })();

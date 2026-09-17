@@ -61,7 +61,8 @@
 
     .toggles {
       display: flex;
-      gap: 16px;
+      flex-direction: column;
+      gap: 8px;
       margin-bottom: 14px;
       padding: 10px 12px;
       background: var(--surface);
@@ -71,7 +72,7 @@
     .toggle-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       cursor: pointer;
     }
     .toggle-item input[type="checkbox"] {
@@ -107,6 +108,7 @@
       font-size: 0.8rem;
       color: var(--text);
       user-select: none;
+      min-width: 55px;
     }
   </style>
 </head>
@@ -121,6 +123,10 @@
     <div class="toggle-item">
       <input type="checkbox" id="toggleEnglish" checked>
       <label for="toggleEnglish">🇬🇧 English</label>
+    </div>
+    <div class="toggle-item">
+      <input type="checkbox" id="toggleHover">
+      <label for="toggleHover">👆 Hover</label>
     </div>
   </div>
 

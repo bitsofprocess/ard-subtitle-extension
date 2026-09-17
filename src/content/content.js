@@ -20,6 +20,7 @@
   var syncRaf = null;
   var showGerman = true;   // display original German text
   var showEnglish = true;  // display English translation
+  var hoverEnglish = false; // reveal English on hover instead of always
 
   // ── Display preferences ──────────────────────────────────────────────
 
@@ -31,6 +32,7 @@
     try {
       showGerman = await SubtitleStorage.getDisplayGerman();
       showEnglish = await SubtitleStorage.getDisplayEnglish();
+      hoverEnglish = await SubtitleStorage.getHoverEnglish();
       applyDisplayAttrs();
     } catch (e) { /* ignore */ }
   }
@@ -43,6 +45,7 @@
     if (overlay) {
       overlay.dataset.showGerman = showGerman ? 'true' : 'false';
       overlay.dataset.showEnglish = showEnglish ? 'true' : 'false';
+      overlay.dataset.hoverEnglish = hoverEnglish ? 'true' : 'false';
     }
   }
 
@@ -91,6 +94,7 @@
     // loadDisplayPreferences() runs.
     ol.setAttribute('data-show-german', 'true');
     ol.setAttribute('data-show-english', 'true');
+    ol.setAttribute('data-hover-english', 'false');
     ol.innerHTML =
       '<style>' +
       '  #__subtitle_translator_overlay__ {' +
@@ -115,6 +119,9 @@
       '  }' +
       '  /* Both on: always show English (default) */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="true"][data-show-english="true"] .__st_translation__ { display: block; }' +
+      '  /* Hover mode: hide English until hovering over the cue */ ' +
+      '  #__subtitle_translator_overlay__[data-hover-english="true"][data-show-german="true"][data-show-english="true"] .__st_translation__ { display: none; }' +
+      '  #__subtitle_translator_overlay__.hover-show-english .__st_translation__ { display: block !important; }' +
       '  /* German only: hide English completely */ ' +
       '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none !important; }' +
       '  /* English only: always show English, hide German container */ ' +
@@ -678,6 +685,22 @@
     });
   }
 
+  function wireHoverReveal() {
+    var cueEl = document.getElementById('__st_cue__');
+    var overlay = document.getElementById('__subtitle_translator_overlay__');
+    if (!cueEl || !overlay) return;
+
+    cueEl.addEventListener('mouseenter', function () {
+      if (hoverEnglish) {
+        overlay.classList.add('hover-show-english');
+      }
+    });
+
+    cueEl.addEventListener('mouseleave', function () {
+      overlay.classList.remove('hover-show-english');
+    });
+  }
+
   async function tryBoot() {
     // Already set up.
     if (document.getElementById('__subtitle_translator_overlay__')) return;
@@ -712,10 +735,13 @@
     // 4. Wire gloss dismissal.
     wireGlossDismiss();
 
+    // 4b. Wire hover reveal for English.
+    wireHoverReveal();
+
     // 5. Listen for display preference changes.
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area !== 'local') return;
-      if (changes.display_german || changes.display_english) {
+      if (changes.display_german || changes.display_english || changes.hover_english) {
         loadDisplayPreferences();
       }
     });

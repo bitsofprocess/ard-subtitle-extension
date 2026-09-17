@@ -108,8 +108,10 @@
   async function loadToggles() {
     var germanOn = await SubtitleStorage.getDisplayGerman();
     var englishOn = await SubtitleStorage.getDisplayEnglish();
+    var hoverOn = await SubtitleStorage.getHoverEnglish();
     document.getElementById('toggleGerman').checked = germanOn;
     document.getElementById('toggleEnglish').checked = englishOn;
+    document.getElementById('toggleHover').checked = hoverOn;
   }
 
   document.getElementById('toggleGerman').addEventListener('change', function () {
@@ -118,6 +120,10 @@
 
   document.getElementById('toggleEnglish').addEventListener('change', function () {
     SubtitleStorage.setDisplayEnglish(this.checked);
+  });
+
+  document.getElementById('toggleHover').addEventListener('change', function () {
+    SubtitleStorage.setHoverEnglish(this.checked);
   });
 
   // --- Start ------------------------------------------------------------
