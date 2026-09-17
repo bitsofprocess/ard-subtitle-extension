@@ -110,7 +110,7 @@ async function sendToContent(tabId, message) {
   try {
     return await chrome.tabs.sendMessage(tabId, message);
   } catch (err) {
-    throw new Error('Could not reach content script — is this an ARD video page?');
+    throw new Error('sendMessage to tab ' + tabId + ' failed: ' + (err.message || String(err)));
   }
 }
 
@@ -128,9 +128,24 @@ async function runImport(tab) {
     return;
   }
 
-  // 2. Already translated?  Skip straight to overlay injection.
+  // 2. Already translated?  Try exact match, then fuzzy (same logic as content.js).
+  console.log('[streamlined-import] checking storage for:', normalizedUrl);
   try {
     var existing = await SubtitleStorage.getCues(normalizedUrl);
+
+    if (!existing || existing.length === 0) {
+      // Fuzzy fallback — the page URL may have extra query params that
+      // normalizeUrl didn't strip (ARD adds tracking params dynamically).
+      var allUrls = await SubtitleStorage.listVideoUrls();
+      for (var i = 0; i < allUrls.length; i++) {
+        if (normalizedUrl.indexOf(normalizeUrl(allUrls[i])) === 0 ||
+            normalizeUrl(allUrls[i]).indexOf(normalizedUrl) === 0) {
+          existing = await SubtitleStorage.getCues(allUrls[i]);
+          if (existing && existing.length > 0) break;
+        }
+      }
+    }
+
     if (existing && existing.length > 0) {
       console.log('[streamlined-import] cues already stored, skipping translation');
       setProgress(tab.id, '✓', '#2ecc71');
