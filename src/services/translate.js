@@ -82,7 +82,9 @@
       }
       var entries = results[b].value;
       for (var j = 0; j < entries.length; j++) {
-        cues[batchOffset + j].translation = entries[j];
+        // Clean up " / " line-break markers from the translation —
+        // these are an artifact of German \n → " / " sanitisation.
+        cues[batchOffset + j].translation = entries[j].replace(/ \/ /g, '\n');
       }
       batchOffset += entries.length;
     }

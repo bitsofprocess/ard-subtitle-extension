@@ -215,10 +215,16 @@
     var cue = cues[cueIdx];
 
     // Full-sentence translation (revealed on hover via CSS).
+    // Split on newlines or the " / " line-break marker (artifact of
+    // \n → " / " sanitisation before sending to the LLM).
     if (cue.translation) {
       var tDiv = document.createElement('div');
       tDiv.className = '__st_translation__';
-      tDiv.textContent = cue.translation;
+      var parts = cue.translation.split(/\n| \/ /);
+      for (var p = 0; p < parts.length; p++) {
+        if (p > 0) tDiv.appendChild(document.createElement('br'));
+        tDiv.appendChild(document.createTextNode(parts[p]));
+      }
       cueEl.appendChild(tDiv);
     }
 
