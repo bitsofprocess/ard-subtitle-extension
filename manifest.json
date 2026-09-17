@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Overlays translated subtitles on videos. Click any word for a contextual gloss.",
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab"
   ],
   "host_permissions": [
     "https://openrouter.ai/*",
@@ -22,6 +23,11 @@
     {
       "matches": ["*://www.ardmediathek.de/*"],
       "js": ["src/parser/parser.js", "src/storage/storage.js", "src/services/tokenize.js", "src/content/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.ardmediathek.de/video/*"],
+      "js": ["src/parser/parser.js", "src/content/discover.js"],
       "run_at": "document_idle"
     }
   ]

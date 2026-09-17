@@ -39,7 +39,8 @@
       font-weight: 600;
       margin-bottom: 8px;
     }
-    button:hover { opacity: 0.9; }
+    button:hover:not(:disabled) { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .settings-link {
       display: block;
@@ -50,7 +51,7 @@
     }
     .settings-link a { color: var(--accent); }
 
-    #storedInfo {
+    #status {
       font-size: 0.75rem;
       color: var(--muted);
       margin-top: 10px;
@@ -61,15 +62,14 @@
 </head>
 <body>
   <h1>🎬 Subtitle Translator</h1>
-  <p>Import a subtitle XML file, translate it with DeepSeek, and overlay it on the video.</p>
 
-  <button id="openBtn">Open Translator</button>
+  <div id="actions"></div>
 
   <div class="settings-link">
     <a href="#" id="settingsLink">⚙️ Settings (API key)</a>
   </div>
 
-  <div id="storedInfo"></div>
+  <div id="status"></div>
 
   <script src="../storage/storage.js"></script>
   <script src="popup.js"></script>

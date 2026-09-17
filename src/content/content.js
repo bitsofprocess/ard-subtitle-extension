@@ -502,6 +502,36 @@
   // ── Boot / teardown ──────────────────────────────────────────────────
 
   /**
+   * Handle CUES_READY message from the background service worker
+   * (sent after the streamlined import translation pipeline finishes).
+   */
+  async function handleCuesReady() {
+    // Already showing overlay — nothing to do.
+    if (document.getElementById('__subtitle_translator_overlay__')) return true;
+
+    var hasCues = await loadCues();
+    if (!hasCues) return false;
+
+    // Clear any stale state and boot fresh.
+    cues = null;
+    await tryBoot();
+    return true;
+  }
+
+  // Listen for messages from the background service worker.
+  chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+    if (message.type === 'CUES_READY') {
+      handleCuesReady().then(function (ok) {
+        sendResponse({ ok: ok });
+      }).catch(function (err) {
+        sendResponse({ ok: false, error: err.message || String(err) });
+      });
+      return true; // async sendResponse
+    }
+    return false;
+  });
+
+  /**
    * Look up stored cues for `url`.  Normalises the URL to ignore query
    * params (ARD passes ?startTime=0 etc.).
    */
