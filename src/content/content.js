@@ -571,7 +571,23 @@
     return false;
   }
 
+  function togglePause() {
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(function () { /* ignore */ });
+    } else {
+      video.pause();
+    }
+  }
+
   function wireGlossDismiss() {
+    // Click the cue text area (not a word) → dismiss gloss + toggle pause.
+    // Word clicks call stopPropagation(), so they never reach this handler.
+    document.getElementById('__st_cue__').addEventListener('click', function () {
+      hideGloss();
+      togglePause();
+    });
+
     // Click anywhere in the overlay (but not on a word) → dismiss gloss.
     document.getElementById('__subtitle_translator_overlay__').addEventListener('click', function (e) {
       if (e.target.id === '__subtitle_translator_overlay__' ||
