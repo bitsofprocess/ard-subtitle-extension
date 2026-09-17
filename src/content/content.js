@@ -117,11 +117,11 @@
       '  #__subtitle_translator_overlay__[data-show-german="true"][data-show-english="true"] .__st_translation__ { display: block; }' +
       '  /* German only: hide English completely */ ' +
       '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none !important; }' +
-      '  /* English only: always show English, hide German word spans */ ' +
+      '  /* English only: always show English, hide German container */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_translation__ { display: block !important; }' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_word__ { display: none !important; }' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_german__ { display: none !important; }' +
       '  /* Both off: hide everything */ ' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_word__,' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_german__,' +
       '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_translation__ { display: none !important; }' +
       '  .__st_word__ {' +
       '    color: #fff;' +
@@ -232,18 +232,23 @@
     var tokens = SubtitleServices.tokenize(cue.text);
     var currentLine = 0;
 
+    // Wrap all German content (spans, spaces, <br>s) in a container so
+    // hiding German hides EVERYTHING — not just the spans.
+    var germanDiv = document.createElement('div');
+    germanDiv.className = '__st_german__';
+
     for (var ti = 0; ti < tokens.length; ti++) {
       var tok = tokens[ti];
 
       // Insert <br> between lines.
       while (tok.line > currentLine) {
-        cueEl.appendChild(document.createElement('br'));
+        germanDiv.appendChild(document.createElement('br'));
         currentLine++;
       }
 
       // Insert whitespace between consecutive tokens on the same line.
       if (ti > 0 && tokens[ti - 1].line === tok.line) {
-        cueEl.appendChild(document.createTextNode(' '));
+        germanDiv.appendChild(document.createTextNode(' '));
       }
 
       var span = document.createElement('span');
@@ -262,8 +267,10 @@
         span.style.color = '#999';
       }
 
-      cueEl.appendChild(span);
+      germanDiv.appendChild(span);
     }
+
+    cueEl.appendChild(germanDiv);
   }
 
   // ── Gloss popup ──────────────────────────────────────────────────────
