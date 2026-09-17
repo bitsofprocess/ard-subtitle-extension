@@ -109,7 +109,6 @@
       '  }' +
       '  #__st_cue__ {' +
       '    display: none;' +
-      '    flex-direction: column;' +
       '    background: rgba(0,0,0,0.7);' +
       '    border-radius: 6px;' +
       '    padding: 8px 16px;' +
@@ -118,19 +117,22 @@
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
       '    pointer-events: auto;' +
       '  }' +
-      '  /* Both on: always show English (default) */ ' +
+      '  /* ── language toggle rules ── */ ' +
+      '  /* Default: English hidden, German visible */ ' +
+      '  #__subtitle_translator_overlay__ .__st_translation__ { display: none; }' +
+      '  /* Both on: show English alongside German */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="true"][data-show-english="true"] .__st_translation__ { display: block; }' +
-      '  /* Hover mode (English enabled): hide German, reveal on hover */ ' +
-      '  #__subtitle_translator_overlay__[data-hover-english="true"][data-show-english="true"] .__st_german__ { display: none; }' +
-      '  #__subtitle_translator_overlay__.hover-show-german .__st_german__ { display: block !important; }' +
-      '  /* German only: hide English completely */ ' +
-      '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none !important; }' +
-      '  /* English only: always show English, hide German (unless hovering) */ ' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_translation__ { display: block !important; }' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]):not([data-hover-english="true"]) .__st_german__ { display: none !important; }' +
+      '  /* German only: hide English */ ' +
+      '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none; }' +
+      '  /* English only: hide German, show English */ ' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"] .__st_german__ { display: none; }' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"] .__st_translation__ { display: block; }' +
       '  /* Both off: hide everything */ ' +
       '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_german__,' +
-      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_translation__ { display: none !important; }' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_translation__ { display: none; }' +
+      '  /* ── hover reveal (uses !important to override toggle rules) ── */ ' +
+      '  #__subtitle_translator_overlay__.hover-show-english .__st_translation__ { display: block !important; }' +
+      '  #__subtitle_translator_overlay__.hover-show-german .__st_german__ { display: block !important; }' +
       '  .__st_word__ {' +
       '    color: #fff;' +
       '    cursor: pointer;' +
@@ -140,7 +142,6 @@
       '  }' +
       '  .__st_word__:hover { color: #e94560; background: rgba(255,255,255,0.25); }' +
       '  .__st_translation__ {' +
-      '    order: 1;' +
       '    display: none;' +
       '    color: #ffd166;' +
       '    font-style: italic;' +
@@ -148,10 +149,6 @@
       '    padding-bottom: 4px;' +
       '    border-bottom: 1px solid rgba(255,255,255,0.15);' +
       '  }' +
-      '  .__st_german__ { order: 2; }' +
-      '  /* Hover reveal: swap order so revealed text (German) sits on top */ ' +
-      '  .hover-show-german .__st_translation__ { order: 2; }' +
-      '  .hover-show-german .__st_german__ { order: 1; }' +
       '  #__st_gloss__ {' +
       '    display: none;' +
       '    position: absolute;' +
@@ -222,7 +219,7 @@
       return;
     }
 
-    cueEl.style.display = 'inline-flex';
+    cueEl.style.display = 'inline-block';
     cueEl.innerHTML = '';
 
     var cue = cues[cueIdx];
@@ -697,12 +694,14 @@
     if (!cueEl || !overlay) return;
 
     cueEl.addEventListener('mouseenter', function () {
-      if (hoverEnglish) {
+      if (overlay.dataset.hoverEnglish === 'true') {
+        overlay.classList.add('hover-show-english');
         overlay.classList.add('hover-show-german');
       }
     });
 
     cueEl.addEventListener('mouseleave', function () {
+      overlay.classList.remove('hover-show-english');
       overlay.classList.remove('hover-show-german');
     });
   }
