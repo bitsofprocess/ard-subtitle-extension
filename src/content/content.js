@@ -89,7 +89,7 @@
       '  .__st_word__:hover { color: #e94560; background: rgba(255,255,255,0.25); }' +
       '  .__st_translation__ {' +
       '    display: none;' +
-      '    color: #ccc;' +
+      '    color: #ffd166;' +
       '    font-style: italic;' +
       '    font-size: 0.65em;' +
       '    margin-bottom: 4px;' +
