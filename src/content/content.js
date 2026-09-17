@@ -62,6 +62,13 @@
     overlay.style.width = r.width + 'px';
     overlay.style.height = r.height + 'px';
     overlay.style.zIndex = '2147483647';
+
+    // Dynamically scale font with video width: 2.5% of video width,
+    // clamped between 12px and 60px.
+    var cueEl = document.getElementById('__st_cue__');
+    if (cueEl) {
+      cueEl.style.fontSize = Math.min(Math.max(r.width * 0.025, 12), 60) + 'px';
+    }
   }
 
   // ── Selectors (tried in order for video & container) ────────────────
@@ -103,7 +110,6 @@
       '    padding: 8px 16px;' +
       '    max-width: none;' +
       '    line-height: 1.7;' +
-      '    font-size: 52px;' +
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
       '    pointer-events: auto;' +
       '  }' +
@@ -129,7 +135,6 @@
       '    display: none;' +
       '    color: #ffd166;' +
       '    font-style: italic;' +
-      '    font-size: 0.65em;' +
       '    margin-bottom: 4px;' +
       '    padding-bottom: 4px;' +
       '    border-bottom: 1px solid rgba(255,255,255,0.15);' +

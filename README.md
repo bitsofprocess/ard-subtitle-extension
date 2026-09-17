@@ -4,7 +4,7 @@ Chrome extension that overlays clickable German subtitles (with English translat
 
 **One click on any ARD video page** — the extension auto-detects the subtitle file, translates it via LLM, and overlays it on the page you're already watching. No manual file drop, no URL pasting, no reload.
 
-Hover over a cue to reveal the English translation. Click any word for a contextual gloss popup.
+Both German and English subtitles appear simultaneously. Click any word for a contextual gloss popup. Use the 🇩🇪/🇬🇧 toggles in the popup to show or hide each language.
 
 ## How it works
 
@@ -73,8 +73,9 @@ npm install
 1. Go to the video page in ARD Mediathek
 2. Turn **OFF** the site's built-in CC/subtitle button
 3. German subtitles appear at the bottom, synced to the video
-4. **Hover** over a cue to see the English translation
+4. German + English subtitles appear simultaneously at the bottom, synced to the video
 5. **Click** any word to see a gloss popup (lemma + contextual meaning, ~1–3s first click, instant afterwards)
+6. Open the popup anytime to toggle 🇩🇪 Original or 🇬🇧 English on/off
 
 ## Tests
 
@@ -87,8 +88,10 @@ npm test   # 55+ tests, zero dependencies beyond @xmldom/xmldom
 | Key | Default | Where |
 |-----|---------|-------|
 | Model | `openai/gpt-4o-mini` | `SubtitleServices.config.MODEL` in `src/services/translate.js` |
-|Batch size | 20 | `S.config.BATCH_SIZE` |
+| Batch size | 20 | `S.config.BATCH_SIZE` |
 | Concurrency | 3 | `S.config.CONCURRENCY` |
+| Show German | `true` | Popup toggle → `display_german` in `chrome.storage.local` |
+| Show English | `true` | Popup toggle → `display_english` in `chrome.storage.local` |
 
 ## API key
 
