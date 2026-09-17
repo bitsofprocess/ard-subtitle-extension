@@ -109,6 +109,7 @@
       '  }' +
       '  #__st_cue__ {' +
       '    display: none;' +
+      '    flex-direction: column;' +
       '    background: rgba(0,0,0,0.7);' +
       '    border-radius: 6px;' +
       '    padding: 8px 16px;' +
@@ -139,6 +140,7 @@
       '  }' +
       '  .__st_word__:hover { color: #e94560; background: rgba(255,255,255,0.25); }' +
       '  .__st_translation__ {' +
+      '    order: 1;' +
       '    display: none;' +
       '    color: #ffd166;' +
       '    font-style: italic;' +
@@ -146,6 +148,10 @@
       '    padding-bottom: 4px;' +
       '    border-bottom: 1px solid rgba(255,255,255,0.15);' +
       '  }' +
+      '  .__st_german__ { order: 2; }' +
+      '  /* Hover reveal: swap order so revealed text (German) sits on top */ ' +
+      '  .hover-show-german .__st_translation__ { order: 2; }' +
+      '  .hover-show-german .__st_german__ { order: 1; }' +
       '  #__st_gloss__ {' +
       '    display: none;' +
       '    position: absolute;' +
@@ -216,7 +222,7 @@
       return;
     }
 
-    cueEl.style.display = 'inline-block';
+    cueEl.style.display = 'inline-flex';
     cueEl.innerHTML = '';
 
     var cue = cues[cueIdx];
