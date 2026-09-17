@@ -2,13 +2,21 @@
 
 Chrome extension that overlays clickable German subtitles (with English translations) over ARD Mediathek videos.
 
-Import a subtitle XML, translate via LLM, and watch with synced original text overlaid on the video. Hover over a cue to reveal the English translation. Click any word for a gloss popup.
+**One click on any ARD video page** — the extension auto-detects the subtitle file, translates it via LLM, and overlays it on the page you're already watching. No manual file drop, no URL pasting, no reload.
+
+Hover over a cue to reveal the English translation. Click any word for a contextual gloss popup.
 
 ## How it works
 
-1. **Import** — open the extension, drop a TTML subtitle XML (from ARD's "Untertitel" download), paste the video URL, and click Translate.
-2. **Translate** — cues are batched and sent to OpenRouter's `gpt-4o-mini`, which returns a numbered list of English translations.
-3. **Overlay** — on the matching video page, a content script syncs the active cue to `video.currentTime` and renders it as a positioned overlay with clickable words.
+### Streamlined import (primary)
+
+1. **Click the extension icon** on any `ardmediathek.de/video/...` page → popup shows "Translate This Video".
+2. **Click the button** — the extension extracts the subtitle URL from the page itself (no network sniffing), fetches the XML under the page's own origin (CORS-safe), and runs the translation pipeline.
+3. **Overlay appears automatically** on the page you're already on — no tab switch, no reload, video keeps playing.
+
+### Manual import (fallback)
+
+On non-ARD pages, the popup shows "Open Translator" — this opens the import tab where you can drop a subtitle XML file and paste a video URL manually.
 
 ## Tech stack
 
@@ -27,14 +35,16 @@ src/
   services/api.js          OpenRouter fetch with exponential backoff
   services/translate.js    Batch orchestrator (split/retry/concurrency)
   services/validate.js     Stub (logic merged into prompt.js)
-  storage/storage.js       chrome.storage.local wrapper
-  import/                  Full-tab translation UI
+  services/tokenize.js     Word tokenizer for clickable spans & gloss indices
+  services/gloss.js        Word-level gloss LLM prompt & response parser
+  storage/storage.js       chrome.storage.local wrapper (cues, gloss cache, API key)
+  background/background.js Service worker — gloss LLM calls + streamlined-import orchestrator
+  popup/                   Context-aware launcher ("Translate This Video" on ARD, import tab fallback)
+  import/                  Full-tab translation UI (manual fallback)
   options/                 API key settings page
-  popup/                   Extension launcher
-  content/content.js       Video overlay (sync, render, click, hover)
-test/
-  parser.test.js           9 tests
-  translate.test.js        9 tests
+  content/content.js       Video overlay (sync, render, click, hover, gloss popup)
+  content/discover.js      Subtitle URL extraction + fetch + parse (triggered by background)
+test/                      55+ tests across 5 suites
 sample.xml                 Real ARD Mediathek fixture (Babylon Berlin S05 E01)
 ```
 
@@ -54,10 +64,9 @@ npm install
 
 ### Translate subtitles
 
-1. Download a subtitle XML from ARD Mediathek (the "UT" / Untertitel option)
-2. Click the extension icon → **Open Translator**
-3. Drop the XML, paste the video URL, click **Translate**
-4. Wait for the progress bar to finish
+**Streamlined (primary):** go to any ARD video page, click the extension icon → **Translate This Video**. Progress shows on the badge, overlay auto-injects when done.
+
+**Manual (fallback):** on any non-ARD page, click the extension icon → **Open Translator** → drop a subtitle XML → paste the video URL → click Translate.
 
 ### Watch
 
@@ -65,12 +74,12 @@ npm install
 2. Turn **OFF** the site's built-in CC/subtitle button
 3. German subtitles appear at the bottom, synced to the video
 4. **Hover** over a cue to see the English translation
-5. **Click** any word to see a gloss popup with the full translation
+5. **Click** any word to see a gloss popup (lemma + contextual meaning, ~1–3s first click, instant afterwards)
 
 ## Tests
 
 ```bash
-npm test   # 18 tests, zero dependencies beyond @xmldom/xmldom
+npm test   # 55+ tests, zero dependencies beyond @xmldom/xmldom
 ```
 
 ## Configuration
