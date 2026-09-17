@@ -70,7 +70,7 @@
       '    background: rgba(0,0,0,0.7);' +
       '    border-radius: 6px;' +
       '    padding: 8px 16px;' +
-      '    max-width: 95%;' +
+      '    max-width: 160%;' +
       '    line-height: 1.7;' +
       '    font-size: 52px;' +
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
@@ -91,7 +91,7 @@
       '    display: none;' +
       '    color: #ccc;' +
       '    font-style: italic;' +
-      '    font-size: 0.85em;' +
+      '    font-size: 0.65em;' +
       '    margin-bottom: 4px;' +
       '    padding-bottom: 4px;' +
       '    border-bottom: 1px solid rgba(255,255,255,0.15);' +
