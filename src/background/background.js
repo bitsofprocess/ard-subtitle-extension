@@ -79,6 +79,20 @@ async function handleStartImport(msg) {
 }
 
 /**
+ * Return just the origin + pathname so different episodes never match
+ * (episode IDs live in the path) but query-param variants of the same
+ * video will.
+ */
+function urlKey(url) {
+  try {
+    var u = new URL(url);
+    return u.origin + u.pathname;
+  } catch (e) {
+    return url;
+  }
+}
+
+/**
  * Strip common noisy query params so the same video matches regardless
  * of share tracking params (same logic as content.js's normalizeUrl).
  */
@@ -136,10 +150,12 @@ async function runImport(tab) {
     if (!existing || existing.length === 0) {
       // Fuzzy fallback — the page URL may have extra query params that
       // normalizeUrl didn't strip (ARD adds tracking params dynamically).
+      // Only match if origin + pathname are identical, so different
+      // episodes (which have different paths) never collide.
+      var pageKey = urlKey(tab.url);
       var allUrls = await SubtitleStorage.listVideoUrls();
       for (var i = 0; i < allUrls.length; i++) {
-        if (normalizedUrl.indexOf(normalizeUrl(allUrls[i])) === 0 ||
-            normalizeUrl(allUrls[i]).indexOf(normalizedUrl) === 0) {
+        if (urlKey(allUrls[i]) === pageKey) {
           existing = await SubtitleStorage.getCues(allUrls[i]);
           if (existing && existing.length > 0) break;
         }

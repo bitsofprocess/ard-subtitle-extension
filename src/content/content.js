@@ -573,6 +573,22 @@
    * Look up stored cues for `url`.  Normalises the URL to ignore query
    * params (ARD passes ?startTime=0 etc.).
    */
+  /**
+   * Return just the pathname of a URL (for comparing same-video across
+   * different tracking params).
+   */
+  function urlKey(url) {
+    try {
+      var u = new URL(url);
+      // Compare by origin + pathname — episode IDs live in the path,
+      // so different episodes never match. Only query-param variants
+      // of the same video will share the same origin + pathname.
+      return u.origin + u.pathname;
+    } catch (e) {
+      return url;
+    }
+  }
+
   function normalizeUrl(url) {
     try {
       var u = new URL(url);
@@ -590,12 +606,13 @@
     var normalized = normalizeUrl(location.href);
     cues = await SubtitleStorage.getCues(normalized);
 
-    // If no exact match, try stored keys that start with the same origin+path.
+    // If no exact match, try stored keys for the same video that differ
+    // only in query params (ARD adds tracking params dynamically).
     if (!cues || cues.length === 0) {
+      var pageKey = urlKey(location.href);
       var allUrls = await SubtitleStorage.listVideoUrls();
       for (var i = 0; i < allUrls.length; i++) {
-        if (normalized.indexOf(normalizeUrl(allUrls[i])) === 0 ||
-            normalizeUrl(allUrls[i]).indexOf(normalized) === 0) {
+        if (urlKey(allUrls[i]) === pageKey) {
           cues = await SubtitleStorage.getCues(allUrls[i]);
           if (cues && cues.length > 0) break;
         }
