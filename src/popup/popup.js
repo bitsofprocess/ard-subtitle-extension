@@ -103,7 +103,25 @@
     chrome.runtime.openOptionsPage();
   });
 
+  // --- Language toggles --------------------------------------------------
+
+  async function loadToggles() {
+    var germanOn = await SubtitleStorage.getDisplayGerman();
+    var englishOn = await SubtitleStorage.getDisplayEnglish();
+    document.getElementById('toggleGerman').checked = germanOn;
+    document.getElementById('toggleEnglish').checked = englishOn;
+  }
+
+  document.getElementById('toggleGerman').addEventListener('change', function () {
+    SubtitleStorage.setDisplayGerman(this.checked);
+  });
+
+  document.getElementById('toggleEnglish').addEventListener('change', function () {
+    SubtitleStorage.setDisplayEnglish(this.checked);
+  });
+
   // --- Start ------------------------------------------------------------
 
+  loadToggles();
   render();
 })();

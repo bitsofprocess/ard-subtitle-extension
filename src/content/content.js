@@ -18,6 +18,33 @@
   var cues = null;
   var activeCueIdx = -1;
   var syncRaf = null;
+  var showGerman = true;   // display original German text
+  var showEnglish = true;  // display English translation
+
+  // ── Display preferences ──────────────────────────────────────────────
+
+  /**
+   * Load display preferences from storage. Called on boot and
+   * whenever chrome.storage changes.
+   */
+  async function loadDisplayPreferences() {
+    try {
+      showGerman = await SubtitleStorage.getDisplayGerman();
+      showEnglish = await SubtitleStorage.getDisplayEnglish();
+      applyDisplayAttrs();
+    } catch (e) { /* ignore */ }
+  }
+
+  /**
+   * Set data attributes on the overlay so CSS rules respond.
+   */
+  function applyDisplayAttrs() {
+    var overlay = document.getElementById('__subtitle_translator_overlay__');
+    if (overlay) {
+      overlay.dataset.showGerman = showGerman ? 'true' : 'false';
+      overlay.dataset.showEnglish = showEnglish ? 'true' : 'false';
+    }
+  }
 
   // ── Overlay positioning ─────────────────────────────────────────────
 
@@ -53,6 +80,10 @@
   function createOverlay() {
     var ol = document.createElement('div');
     ol.id = '__subtitle_translator_overlay__';
+    // Default display attributes so CSS rules match even before
+    // loadDisplayPreferences() runs.
+    ol.setAttribute('data-show-german', 'true');
+    ol.setAttribute('data-show-english', 'true');
     ol.innerHTML =
       '<style>' +
       '  #__subtitle_translator_overlay__ {' +
@@ -76,8 +107,16 @@
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
       '    pointer-events: auto;' +
       '  }' +
-      '  /* Show English translation on hover */ ' +
-      '  #__st_cue__:hover .__st_translation__ { display: block; }' +
+      '  /* Both on: always show English (default) */ ' +
+      '  #__subtitle_translator_overlay__[data-show-german="true"][data-show-english="true"] .__st_translation__ { display: block; }' +
+      '  /* German only: hide English completely */ ' +
+      '  #__subtitle_translator_overlay__[data-show-english="false"] .__st_translation__ { display: none !important; }' +
+      '  /* English only: always show English, hide German word spans */ ' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_translation__ { display: block !important; }' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"]:not([data-show-english="false"]) .__st_word__ { display: none !important; }' +
+      '  /* Both off: hide everything */ ' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_word__,' +
+      '  #__subtitle_translator_overlay__[data-show-german="false"][data-show-english="false"] .__st_translation__ { display: none !important; }' +
       '  .__st_word__ {' +
       '    color: #fff;' +
       '    cursor: pointer;' +
@@ -624,6 +663,10 @@
     //    avoid overflow:hidden clipping inside the player.
     var overlay = createOverlay();
     document.body.appendChild(overlay);
+
+    // Load display preferences and apply data attributes.
+    await loadDisplayPreferences();
+
     repositionOverlay();
 
     // Keep position in sync on resize & scroll.
@@ -635,7 +678,15 @@
     // 4. Wire gloss dismissal.
     wireGlossDismiss();
 
-    // 5. Start sync loop.
+    // 5. Listen for display preference changes.
+    chrome.storage.onChanged.addListener(function (changes, area) {
+      if (area !== 'local') return;
+      if (changes.display_german || changes.display_english) {
+        loadDisplayPreferences();
+      }
+    });
+
+    // 6. Start sync loop.
     sync();
   }
 

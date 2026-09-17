@@ -12,6 +12,8 @@
   var STORAGE_KEY_API_KEY = 'openrouter_api_key';
   var STORAGE_PREFIX_CUES = 'cues:';   // cues:<videoUrl>
   var STORAGE_PREFIX_GLOSSES = 'glosses:'; // glosses:<videoUrl>
+  var STORAGE_KEY_DISPLAY_GERMAN = 'display_german';
+  var STORAGE_KEY_DISPLAY_ENGLISH = 'display_english';
 
   /**
    * Get the stored OpenRouter API key.
@@ -152,6 +154,44 @@
     return next;
   }
 
+  /**
+   * Get display preference for German (original language).
+   * @returns {Promise<boolean>}
+   */
+  async function getDisplayGerman() {
+    var result = await chrome.storage.local.get(STORAGE_KEY_DISPLAY_GERMAN);
+    // Default: true (show German) if not set.
+    return result[STORAGE_KEY_DISPLAY_GERMAN] !== undefined ? result[STORAGE_KEY_DISPLAY_GERMAN] : true;
+  }
+
+  /**
+   * Save display preference for German.
+   */
+  async function setDisplayGerman(show) {
+    var obj = {};
+    obj[STORAGE_KEY_DISPLAY_GERMAN] = !!show;
+    await chrome.storage.local.set(obj);
+  }
+
+  /**
+   * Get display preference for English translation.
+   * @returns {Promise<boolean>}
+   */
+  async function getDisplayEnglish() {
+    var result = await chrome.storage.local.get(STORAGE_KEY_DISPLAY_ENGLISH);
+    // Default: true (show English) if not set.
+    return result[STORAGE_KEY_DISPLAY_ENGLISH] !== undefined ? result[STORAGE_KEY_DISPLAY_ENGLISH] : true;
+  }
+
+  /**
+   * Save display preference for English.
+   */
+  async function setDisplayEnglish(show) {
+    var obj = {};
+    obj[STORAGE_KEY_DISPLAY_ENGLISH] = !!show;
+    await chrome.storage.local.set(obj);
+  }
+
   var ns = g.SubtitleStorage || {};
   ns.getApiKey = getApiKey;
   ns.saveApiKey = saveApiKey;
@@ -162,5 +202,9 @@
   ns.getGlosses = getGlosses;
   ns.getGloss = getGloss;
   ns.saveGlosses = saveGlosses;
+  ns.getDisplayGerman = getDisplayGerman;
+  ns.setDisplayGerman = setDisplayGerman;
+  ns.getDisplayEnglish = getDisplayEnglish;
+  ns.setDisplayEnglish = setDisplayEnglish;
   g.SubtitleStorage = ns;
 })();
