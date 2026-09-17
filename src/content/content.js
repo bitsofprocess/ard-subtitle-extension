@@ -101,7 +101,7 @@
       '    background: rgba(0,0,0,0.7);' +
       '    border-radius: 6px;' +
       '    padding: 8px 16px;' +
-      '    max-width: 160%;' +
+      '    max-width: none;' +
       '    line-height: 1.7;' +
       '    font-size: 52px;' +
       '    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);' +
@@ -122,7 +122,6 @@
       '    cursor: pointer;' +
       '    transition: color 0.15s, background 0.15s;' +
       '    border-radius: 3px;' +
-      '    padding: 1px 2px;' +
       '    pointer-events: auto;' +
       '  }' +
       '  .__st_word__:hover { color: #e94560; background: rgba(255,255,255,0.25); }' +
