@@ -87,9 +87,10 @@
       }
     }
     return parts
-      .join('')
+      .join(' ')
       .replace(/[ \t]*\n[ \t]*/g, '\n')
       .replace(/\n{2,}/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
       .trim();
   }
 

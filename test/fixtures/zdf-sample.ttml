@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--Profile: EBU-TT-D-Basic-DE-->
+<tt:tt xmlns:tt="http://www.w3.org/ns/ttml" xmlns:ttp="http://www.w3.org/ns/ttml#parameter" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:ebuttm="urn:ebu:tt:metadata" ttp:timeBase="media" ttp:cellResolution="50 30" xml:lang="de">
+  <tt:head>
+    <tt:metadata>
+      <ebuttm:documentMetadata>
+        <ebuttm:documentEbuttVersion>v1.0</ebuttm:documentEbuttVersion>
+      </ebuttm:documentMetadata>
+    </tt:metadata>
+    <tt:styling>
+      <tt:style xml:id="defaultStyle" tts:fontFamily="Verdana,Arial,Tiresias" tts:fontSize="160%" tts:lineHeight="125%" />
+      <tt:style xml:id="textBlack" tts:color="#000000" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textRed" tts:color="#FF0000" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textGreen" tts:color="#00FF00" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textYellow" tts:color="#FFFF00" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textBlue" tts:color="#0000FF" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textMagenta" tts:color="#FF00FF" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textCyan" tts:color="#00FFFF" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textWhite" tts:color="#FFFFFF" tts:backgroundColor="#000000c2" />
+      <tt:style xml:id="textCenter" tts:textAlign="center" />
+      <tt:style xml:id="textLeft" tts:textAlign="left" />
+      <tt:style xml:id="textRight" tts:textAlign="right" />
+    </tt:styling>
+    <tt:layout>
+      <tt:region xml:id="top" tts:origin="10% 10%" tts:extent="80% 80%" tts:displayAlign="before" />
+      <tt:region xml:id="bottom" tts:origin="10% 10%" tts:extent="80% 80%" tts:displayAlign="after" />
+    </tt:layout>
+  </tt:head>
+  <tt:body>
+    <tt:div style="defaultStyle">
+      <tt:p xml:id="sub0" style="textCenter" region="bottom" begin="00:00:02.280" end="00:00:05.120">
+        <tt:span style="textWhite">&quot;In einem unbekannten Land,&quot;</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub1" style="textCenter" region="bottom" begin="00:00:05.760" end="00:00:10.240">
+        <tt:span style="textWhite">&quot;vor gar nicht allzu langer Zeit,&quot;</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub2" style="textCenter" region="bottom" begin="00:00:10.680" end="00:00:15.000">
+        <tt:span style="textWhite">&quot;war eine Biene sehr bekannt,&quot;</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub3" style="textCenter" region="bottom" begin="00:00:15.560" end="00:00:20.240">
+        <tt:span style="textWhite">&quot;von der sprach alles</tt:span>
+        <tt:br />
+        <tt:span style="textWhite">weit und breit.&quot;</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub4" style="textCenter" region="bottom" begin="00:00:20.880" end="00:00:26.480">
+        <tt:span style="textWhite">&quot;Und diese Biene, die ich meine,</tt:span>
+        <tt:br />
+        <tt:span style="textWhite">nennt sich Maja,&quot;</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub47" style="textCenter" region="bottom" begin="00:02:33.360" end="00:02:36.560">
+        <tt:span style="textYellow">Äh... aber Königin</tt:span>
+        <tt:br />
+        <tt:span style="textYellow">ist auch ein schöner Name. </tt:span>
+        <tt:span style="textWhite">Oh!</tt:span>
+      </tt:p>
+      <tt:p xml:id="sub119" style="textCenter" region="bottom" begin="00:06:11.240" end="00:06:15.360">
+        <tt:span style="textCyan">Ich muss das Hörnchen halten.</tt:span>
+        <tt:br />
+        <tt:span style="textYellow">Ich halt&apos;s. Gib&apos;s mir ruhig. </tt:span>
+        <tt:span style="textCyan">Nein!</tt:span>
+      </tt:p>
+    </tt:div>
+  </tt:body>
+</tt:tt>
