@@ -14,7 +14,27 @@
   'use strict';
 
   var SUBTITLE_URL_RE =
-    /https:\/\/api\.ardmediathek\.de\/player-service\/subtitle\/ebutt\/[^"]+/;
+    /https:\/\/api\.ardmediathek\.de\/player-service\/subtitle\/ebutt\/[^"]+/g;
+
+  /**
+   * Extract the content ID from an ARD video page URL.
+   * The last path segment is a base64-encoded content ID.
+   * Returns the decoded ID, or null if it can't be extracted.
+   */
+  function extractContentId() {
+    try {
+      var pathParts = location.pathname.split('/');
+      var last = pathParts[pathParts.length - 1];
+      if (!last) return null;
+      // Base64 decode (the ID is in the format "crid://ard.de/...")
+      var decoded = atob(last);
+      // Extract the UUID-like portion: planARD_<uuid>_
+      var m = decoded.match(/planARD_([a-f0-9-]+)_/);
+      return m ? m[1] : decoded;
+    } catch (e) {
+      return null;
+    }
+  }
 
   function extractSubtitleUrl() {
     var el = document.getElementById('fetchedContextValue');
@@ -40,13 +60,42 @@
       return { url: null, reason: 'PARSE_FAILED' };
     }
 
-    var match = JSON.stringify(data).match(SUBTITLE_URL_RE);
-    if (!match) {
+    // Find ALL subtitle URLs in the JSON (not just the first one).
+    var jsonStr = JSON.stringify(data);
+    var allMatches = [];
+    var m;
+    SUBTITLE_URL_RE.lastIndex = 0;
+    while ((m = SUBTITLE_URL_RE.exec(jsonStr)) !== null) {
+      allMatches.push(m[0]);
+    }
+
+    if (allMatches.length === 0) {
       console.log('[subtitle-discover] #fetchedContextValue parsed but no subtitle URL in JSON blob');
       return { url: null, reason: 'NO_MATCH' };
     }
 
-    return { url: match[0], reason: null };
+    console.log('[subtitle-discover] found', allMatches.length, 'subtitle URL(s) in page data:', allMatches);
+
+    // If there are multiple subtitle URLs (e.g. from related/recommended
+    // episodes in the page data), try to pick the one that belongs to the
+    // current video.  We match by the content ID extracted from the page
+    // URL against each subtitle URL.
+    if (allMatches.length > 1) {
+      var contentId = extractContentId();
+      console.log('[subtitle-discover] page content ID:', contentId);
+      if (contentId) {
+        for (var i = 0; i < allMatches.length; i++) {
+          if (allMatches[i].indexOf(contentId) !== -1) {
+            console.log('[subtitle-discover] matched current video at index', i, ':', allMatches[i]);
+            return { url: allMatches[i], reason: null };
+          }
+        }
+      }
+      // Fallback: log a warning and use the first match.
+      console.warn('[subtitle-discover] could not identify which subtitle URL belongs to current video — using first match');
+    }
+
+    return { url: allMatches[0], reason: null };
   }
 
   /**

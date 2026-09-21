@@ -586,13 +586,19 @@
     // Already showing overlay — nothing to do.
     if (document.getElementById('__subtitle_translator_overlay__')) return true;
 
-    var hasCues = await loadCues();
-    if (!hasCues) return false;
-
-    // Clear any stale state and boot fresh.
-    cues = null;
+    // Delegate to tryBoot — it handles cue loading, overlay creation,
+    // display preferences, and sync.  No redundant loadCues / cues=null
+    // dance needed here.
     await tryBoot();
-    return true;
+
+    if (document.getElementById('__subtitle_translator_overlay__')) return true;
+
+    // tryBoot may have returned early because the <video> element wasn't
+    // in the DOM yet (ARD lazy-loads the player).  Schedule a retry so
+    // the overlay appears once the video element is ready.
+    console.log('[subtitle-translator] CUES_READY handled but overlay not created — scheduling retry');
+    scheduleBoot(300);
+    return false;
   }
 
   // Listen for messages from the background service worker.
