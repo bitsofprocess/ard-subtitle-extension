@@ -19,14 +19,13 @@
   /**
    * Extract the content ID from an ARD video page URL.
    * The last path segment is a base64-encoded content ID.
-   * Returns the decoded ID, or null if it can't be extracted.
+   * Returns the UUID string, or null if it can't be extracted.
    */
   function extractContentId() {
     try {
       var pathParts = location.pathname.split('/');
       var last = pathParts[pathParts.length - 1];
       if (!last) return null;
-      // Base64 decode (the ID is in the format "crid://ard.de/...")
       var decoded = atob(last);
       // Extract the UUID-like portion: planARD_<uuid>_
       var m = decoded.match(/planARD_([a-f0-9-]+)_/);
@@ -34,6 +33,44 @@
     } catch (e) {
       return null;
     }
+  }
+
+  /**
+   * Check whether the raw JSON blob at least mentions the current
+   * video's content ID.  If not, the data is likely stale (from a
+   * previous SPA navigation) and should be re-polled.
+   */
+  function pageDataMatchesCurrentVideo(raw) {
+    var contentId = extractContentId();
+    if (!contentId) return true; // can't verify, assume OK
+    return raw.indexOf(contentId) !== -1;
+  }
+
+  /**
+   * Try to match a subtitle URL against the current video's content ID.
+   * Tries multiple strategies: exact UUID match, last-path-segment match.
+   */
+  function subtitleUrlMatchesContentId(url) {
+    var contentId = extractContentId();
+    if (!contentId) return false;
+
+    // Strategy 1: UUID appears directly in the URL.
+    if (url.indexOf(contentId) !== -1) return true;
+
+    // Strategy 2: the content ID as it appears in the page path
+    // (base64 form) matches the last segment of the subtitle URL.
+    try {
+      var pathParts = location.pathname.split('/');
+      var pageLastSegment = pathParts[pathParts.length - 1];
+      var subPathParts = new URL(url).pathname.split('/');
+      var subLastSegment = subPathParts[subPathParts.length - 1];
+      if (pageLastSegment && subLastSegment &&
+          pageLastSegment === subLastSegment) {
+        return true;
+      }
+    } catch (e) { /* ignore */ }
+
+    return false;
   }
 
   function extractSubtitleUrl() {
@@ -76,34 +113,42 @@
 
     console.log('[subtitle-discover] found', allMatches.length, 'subtitle URL(s) in page data:', allMatches);
 
-    // If there are multiple subtitle URLs (e.g. from related/recommended
-    // episodes in the page data), try to pick the one that belongs to the
-    // current video.  We match by the content ID extracted from the page
-    // URL against each subtitle URL.
-    if (allMatches.length > 1) {
-      var contentId = extractContentId();
-      console.log('[subtitle-discover] page content ID:', contentId);
-      if (contentId) {
-        for (var i = 0; i < allMatches.length; i++) {
-          if (allMatches[i].indexOf(contentId) !== -1) {
-            console.log('[subtitle-discover] matched current video at index', i, ':', allMatches[i]);
-            return { url: allMatches[i], reason: null };
-          }
+    // Try to find the subtitle URL that belongs to the current video.
+    // We match by the content ID extracted from the page URL against
+    // each candidate, regardless of how many there are.
+    var contentId = extractContentId();
+    console.log('[subtitle-discover] page content ID:', contentId);
+
+    if (contentId) {
+      for (var i = 0; i < allMatches.length; i++) {
+        if (subtitleUrlMatchesContentId(allMatches[i])) {
+          console.log('[subtitle-discover] matched current video at index', i, ':', allMatches[i]);
+          return { url: allMatches[i], reason: null };
         }
       }
-      // Fallback: log a warning and use the first match.
-      console.warn('[subtitle-discover] could not identify which subtitle URL belongs to current video — using first match');
+      // No match found via content ID.
+      console.warn('[subtitle-discover] could NOT match any subtitle URL to current video');
+      console.warn('[subtitle-discover] page content ID:', contentId);
+      console.warn('[subtitle-discover] candidates:', allMatches);
+      // Fall through — return the first URL anyway (best effort).
     }
 
     return { url: allMatches[0], reason: null };
   }
 
   /**
-   * Wait for #fetchedContextValue to be populated.  ARD lazy-loads page
-   * data via an async call to page-gateway after the initial HTML render.
-   * If the user clicks immediately on landing, the blob may still be
-   * near-empty (~13 chars).  This polls every 300ms for up to 10s.
-   * Returns true once populated, false on timeout.
+   * Wait for #fetchedContextValue to be populated AND to contain data
+   * matching the current video.  ARD lazy-loads page data via an async
+   * call to page-gateway after the initial HTML render; if the user
+   * clicks immediately on landing, the blob may still be near-empty.
+   *
+   * Additionally, if the page was reached via SPA navigation, the
+   * element may contain stale data from the previous page.  We poll
+   * until the blob is large enough AND contains the current page's
+   * content ID.
+   *
+   * Polls every 300ms for up to 10s.  Returns true once ready, false
+   * on timeout.
    */
   function waitForPageState(maxWaitMs) {
     if (maxWaitMs === undefined) maxWaitMs = 10000;
@@ -115,11 +160,17 @@
 
       function check() {
         var raw = (el.textContent || '').trim();
-        if (raw.length >= 100) {
+        if (raw.length >= 100 && pageDataMatchesCurrentVideo(raw)) {
           resolve(true);
           return;
         }
         if (Date.now() - start >= maxWaitMs) {
+          // Log what went wrong.
+          if (raw.length < 100) {
+            console.warn('[subtitle-discover] timed out waiting for page state — blob still too small (' + raw.length + ' chars)');
+          } else {
+            console.warn('[subtitle-discover] timed out waiting for page state — blob is large but does not contain current content ID');
+          }
           resolve(false);
           return;
         }
@@ -135,20 +186,27 @@
       throw new Error('Subtitle fetch failed: HTTP ' + resp.status);
     }
     var xml = await resp.text();
-    return SubtitleParser.parse(xml);
+    var cues = SubtitleParser.parse(xml);
+    // Log the first few cues so we can verify they match the current video.
+    if (cues.length > 0) {
+      var preview = cues.slice(0, 3).map(function (c) { return c.text; });
+      console.log('[subtitle-discover] first 3 cues:', preview);
+    }
+    return cues;
   }
 
   async function handleDiscover() {
-    // If the page state hasn't been populated yet, wait for it.
+    // If the page state hasn't been populated yet, or it contains stale
+    // data from a previous SPA navigation, wait for it to update.
     var raw = (document.getElementById('fetchedContextValue') || {}).textContent || '';
-    if (raw.length < 100) {
-      console.log('[subtitle-discover] #fetchedContextValue is ' + raw.length + ' chars — waiting for page-gateway to populate…');
+    if (raw.length < 100 || !pageDataMatchesCurrentVideo(raw)) {
+      console.log('[subtitle-discover] page state not ready (' + raw.length + ' chars, matches current: ' + pageDataMatchesCurrentVideo(raw) + ') — waiting…');
       var populated = await waitForPageState();
       if (!populated) {
         console.warn('[subtitle-discover] timed out waiting for page state');
         return { ok: false, error: 'Page data not yet loaded — try again in a moment' };
       }
-      console.log('[subtitle-discover] page state populated');
+      console.log('[subtitle-discover] page state populated and verified');
     }
 
     var result = extractSubtitleUrl();
