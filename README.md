@@ -44,8 +44,10 @@ src/
   options/                 API key settings page
   content/content.js       Video overlay (sync, render, click, hover, gloss popup)
   content/discover.js      Subtitle URL extraction + fetch + parse (triggered by background)
-test/                      55+ tests across 5 suites
-sample.xml                 Real ARD Mediathek fixture (Babylon Berlin S05 E01)
+test/                      69 tests across 5 suites
+  fixtures/
+    ard-sample.ttml         Trimmed ARD fixture
+    zdf-sample.ttml         Trimmed ZDF fixture
 ```
 
 ## Setup
@@ -80,7 +82,7 @@ npm install
 ## Tests
 
 ```bash
-npm test   # 55+ tests, zero dependencies beyond @xmldom/xmldom
+npm test   # 69 tests, zero dependencies beyond @xmldom/xmldom
 ```
 
 ## Configuration
