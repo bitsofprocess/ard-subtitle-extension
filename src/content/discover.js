@@ -138,45 +138,70 @@
 
   /**
    * Wait for #fetchedContextValue to be populated AND to contain data
-   * matching the current video.  ARD lazy-loads page data via an async
-   * call to page-gateway after the initial HTML render; if the user
-   * clicks immediately on landing, the blob may still be near-empty.
+   * matching the current video.
    *
-   * Additionally, if the page was reached via SPA navigation, the
-   * element may contain stale data from the previous page.  We poll
-   * until the blob is large enough AND contains the current page's
-   * content ID.
+   * ARD lazy-loads page data via page-gateway.  Since mid-2025, the
+   * subtitle metadata blob is often only populated AFTER the user
+   * enables subtitles (CC) in the ARD player.  We use a MutationObserver
+   * to detect the change whenever it happens — on page load, or later
+   * when the user toggles CC on.
    *
-   * Polls every 300ms for up to 10s.  Returns true once ready, false
-   * on timeout.
+   * Also guards against stale data from SPA navigation by checking
+   * that the blob contains the current video's content ID.
+   *
+   * Returns true once ready, false on timeout.
    */
   function waitForPageState(maxWaitMs) {
-    if (maxWaitMs === undefined) maxWaitMs = 10000;
-    var start = Date.now();
+    if (maxWaitMs === undefined) maxWaitMs = 60000; // 60s — user may need to enable CC first
 
     return new Promise(function (resolve) {
       var el = document.getElementById('fetchedContextValue');
-      if (!el) { resolve(false); return; }
+      if (!el) {
+        console.warn('[subtitle-discover] #fetchedContextValue element not found');
+        resolve(false);
+        return;
+      }
+
+      var timer;
+      var observer;
+      var resolved = false;
+
+      function done(result, reason) {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
+        if (observer) observer.disconnect();
+        if (reason) console.warn('[subtitle-discover] ' + reason);
+        resolve(result);
+      }
 
       function check() {
         var raw = (el.textContent || '').trim();
         if (raw.length >= 100 && pageDataMatchesCurrentVideo(raw)) {
-          resolve(true);
-          return;
+          console.log('[subtitle-discover] page state detected (' + raw.length + ' chars, matches current video)');
+          done(true);
         }
-        if (Date.now() - start >= maxWaitMs) {
-          // Log what went wrong.
-          if (raw.length < 100) {
-            console.warn('[subtitle-discover] timed out waiting for page state — blob still too small (' + raw.length + ' chars)');
-          } else {
-            console.warn('[subtitle-discover] timed out waiting for page state — blob is large but does not contain current content ID');
-          }
-          resolve(false);
-          return;
-        }
-        setTimeout(check, 300);
       }
+
+      // Check immediately in case data is already there.
       check();
+      if (resolved) return;
+
+      // Watch for changes (e.g. CC toggle populates the blob).
+      observer = new MutationObserver(function () {
+        check();
+      });
+      observer.observe(el, { characterData: true, childList: true, subtree: true });
+
+      // Fallback timeout.
+      timer = setTimeout(function () {
+        var raw = (el.textContent || '').trim();
+        if (raw.length < 100) {
+          done(false, 'timed out waiting for page state — blob still too small (' + raw.length + ' chars). Try enabling subtitles (CC) in the ARD player first, then click "Translate This Video" again.');
+        } else {
+          done(false, 'timed out waiting for page state — blob is large but does not contain current content ID');
+        }
+      }, maxWaitMs);
     });
   }
 
@@ -195,16 +220,64 @@
     return cues;
   }
 
+  /**
+   * If the ARD player's CC button is off, click it to enable subtitles.
+   * Since mid-2025, ARD only loads subtitle metadata into
+   * #fetchedContextValue when CC is on, so we auto-toggle it.
+   * Returns true if we clicked the button, false otherwise.
+   */
+  function tryEnableSubtitles() {
+    try {
+      var btn = document.querySelector('button[data-initiator-name*="subtitle"]');
+      if (!btn) {
+        console.log('[subtitle-discover] CC button not found in player');
+        return false;
+      }
+      if (btn.getAttribute('aria-pressed') === 'true') {
+        console.log('[subtitle-discover] CC already enabled');
+        return false;
+      }
+      console.log('[subtitle-discover] CC is off — auto-enabling subtitles');
+      btn.click();
+      return true;
+    } catch (e) {
+      console.warn('[subtitle-discover] error trying to enable CC:', e.message);
+      return false;
+    }
+  }
+
+  /**
+   * If the ARD player's CC button is on, click it to disable subtitles.
+   * Called after we've captured the subtitle data, so the extension's
+   * overlay doesn't compete with ARD's native subtitles.
+   */
+  function tryDisableSubtitles() {
+    try {
+      var btn = document.querySelector('button[data-initiator-name*="subtitle"]');
+      if (!btn) return;
+      if (btn.getAttribute('aria-pressed') !== 'true') return;
+      console.log('[subtitle-discover] turning CC back off (extension overlay takes over)');
+      btn.click();
+    } catch (e) {
+      console.warn('[subtitle-discover] error trying to disable CC:', e.message);
+    }
+  }
+
   async function handleDiscover() {
     // If the page state hasn't been populated yet, or it contains stale
     // data from a previous SPA navigation, wait for it to update.
+    // Since mid-2025, ARD often only populates subtitle metadata after
+    // the user enables subtitles (CC) in the player — we auto-click the
+    // CC button if it's off, and the MutationObserver catches the data
+    // once it loads.
     var raw = (document.getElementById('fetchedContextValue') || {}).textContent || '';
     if (raw.length < 100 || !pageDataMatchesCurrentVideo(raw)) {
-      console.log('[subtitle-discover] page state not ready (' + raw.length + ' chars, matches current: ' + pageDataMatchesCurrentVideo(raw) + ') — waiting…');
+      // Auto-enable CC so subtitle metadata loads into #fetchedContextValue.
+      tryEnableSubtitles();
+      console.log('[subtitle-discover] page state not ready (' + raw.length + ' chars, matches current: ' + pageDataMatchesCurrentVideo(raw) + ') — waiting (up to 60s)…');
       var populated = await waitForPageState();
       if (!populated) {
-        console.warn('[subtitle-discover] timed out waiting for page state');
-        return { ok: false, error: 'Page data not yet loaded — try again in a moment' };
+        return { ok: false, error: 'Subtitle data not found. Try enabling subtitles (CC) in the ARD player, then click "Translate This Video" again.' };
       }
       console.log('[subtitle-discover] page state populated and verified');
     }
@@ -230,6 +303,9 @@
 
     var cues = await fetchAndParse(result.url);
     console.log('[subtitle-discover] parsed', cues.length, 'cues');
+
+    // Turn CC back off so ARD's native subtitles don't overlap with the overlay.
+    tryDisableSubtitles();
 
     return { ok: true, cues: cues, subtitleUrl: result.url };
   }
