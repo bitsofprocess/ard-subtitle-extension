@@ -11,7 +11,7 @@ Both German and English subtitles appear simultaneously. Click any word for a co
 ### Streamlined import (primary)
 
 1. **Click the extension icon** on any `ardmediathek.de/video/...` page → popup shows "Translate This Video".
-2. **Click the button** — the extension auto-enables subtitles (CC) to load subtitle metadata, extracts the subtitle URL from the page, fetches the XML under the page's own origin (CORS-safe), runs the translation pipeline, then turns CC back off (so ARD's native subtitles don't overlap with the overlay).
+2. **Click the button** — the extension auto-enables subtitles (CC) to load subtitle metadata, finds the subtitle URL (from the page data blob, or by scanning the performance resource buffer as a fallback), fetches the XML under the page's own origin (CORS-safe), runs the translation pipeline, then turns CC back off (so ARD's native subtitles don't overlap with the overlay).
 3. **Overlay appears automatically** on the page you're already on — no tab switch, no reload, video keeps playing.
 
 ### Manual import (fallback)
@@ -73,10 +73,9 @@ npm install
 ### Watch
 
 1. Go to the video page in ARD Mediathek
-2. German + English subtitles appear at the bottom, synced to the video
-4. German + English subtitles appear simultaneously at the bottom, synced to the video
-5. **Click** any word to see a gloss popup (lemma + contextual meaning, ~1–3s first click, instant afterwards)
-6. Open the popup anytime to toggle 🇩🇪 Original or 🇬🇧 English on/off
+2. German + English subtitles appear simultaneously at the bottom, synced to the video
+3. **Click** any word to see a gloss popup (lemma + contextual meaning, ~1–3s first click, instant afterwards)
+4. Open the popup anytime to toggle 🇩🇪 Original or 🇬🇧 English on/off
 
 ## Tests
 
