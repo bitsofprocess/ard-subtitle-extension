@@ -1,3 +1,6 @@
+<img width="800" height="500" alt="hover" src="https://github.com/user-attachments/assets/3a0e45cc-5efe-4183-96dc-59f1ac837360" />
+
+
 # ARD Subtitle Translator
 
 Chrome extension that overlays clickable German subtitles (with English translations) over ARD Mediathek videos.
