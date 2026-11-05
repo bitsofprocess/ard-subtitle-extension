@@ -137,71 +137,65 @@
   }
 
   /**
-   * Wait for #fetchedContextValue to be populated AND to contain data
-   * matching the current video.
-   *
-   * ARD lazy-loads page data via page-gateway.  Since mid-2025, the
-   * subtitle metadata blob is often only populated AFTER the user
-   * enables subtitles (CC) in the ARD player.  We use a MutationObserver
-   * to detect the change whenever it happens — on page load, or later
-   * when the user toggles CC on.
-   *
-   * Also guards against stale data from SPA navigation by checking
-   * that the blob contains the current video's content ID.
-   *
-   * Returns true once ready, false on timeout.
+   * Find the most recently fetched subtitle URL in the performance
+   * resource-timing buffer.  The ARD player fetches subtitle XML via
+   * fetch()/XHR, so the URL shows up here regardless of whether
+   * #fetchedContextValue was populated.
    */
-  function waitForPageState(maxWaitMs) {
-    if (maxWaitMs === undefined) maxWaitMs = 60000; // 60s — user may need to enable CC first
+  function findSubtitleUrlInPerformance() {
+    try {
+      var entries = performance.getEntriesByType('resource');
+      var last = null;
+      for (var i = 0; i < entries.length; i++) {
+        if (/player-service\/subtitle\/ebutt\//.test(entries[i].name)) {
+          last = entries[i].name;
+        }
+      }
+      return last;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Wait for subtitle data to become available, from EITHER source:
+   *   1. #fetchedContextValue populated with the current video's data, OR
+   *   2. A subtitle URL appearing in the performance resource buffer
+   *      (the player fetched it after CC was enabled).
+   *
+   * Resolves with { source: 'blob' } | { source: 'performance', url }
+   * | { source: 'timeout' }.
+   */
+  function waitForSubtitleData(maxWaitMs) {
+    if (maxWaitMs === undefined) maxWaitMs = 60000; // 60s
+    var start = Date.now();
 
     return new Promise(function (resolve) {
-      var el = document.getElementById('fetchedContextValue');
-      if (!el) {
-        console.warn('[subtitle-discover] #fetchedContextValue element not found');
-        resolve(false);
-        return;
-      }
-
-      var timer;
-      var observer;
-      var resolved = false;
-
-      function done(result, reason) {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timer);
-        if (observer) observer.disconnect();
-        if (reason) console.warn('[subtitle-discover] ' + reason);
-        resolve(result);
-      }
-
       function check() {
-        var raw = (el.textContent || '').trim();
-        if (raw.length >= 100 && pageDataMatchesCurrentVideo(raw)) {
-          console.log('[subtitle-discover] page state detected (' + raw.length + ' chars, matches current video)');
-          done(true);
+        // Source 1: page-data blob ready + matches current video.
+        var el = document.getElementById('fetchedContextValue');
+        if (el) {
+          var raw = (el.textContent || '').trim();
+          if (raw.length >= 100 && pageDataMatchesCurrentVideo(raw)) {
+            resolve({ source: 'blob' });
+            return;
+          }
         }
+
+        // Source 2: subtitle URL already fetched by the player.
+        var url = findSubtitleUrlInPerformance();
+        if (url) {
+          resolve({ source: 'performance', url: url });
+          return;
+        }
+
+        if (Date.now() - start >= maxWaitMs) {
+          resolve({ source: 'timeout' });
+          return;
+        }
+        setTimeout(check, 300);
       }
-
-      // Check immediately in case data is already there.
       check();
-      if (resolved) return;
-
-      // Watch for changes (e.g. CC toggle populates the blob).
-      observer = new MutationObserver(function () {
-        check();
-      });
-      observer.observe(el, { characterData: true, childList: true, subtree: true });
-
-      // Fallback timeout.
-      timer = setTimeout(function () {
-        var raw = (el.textContent || '').trim();
-        if (raw.length < 100) {
-          done(false, 'timed out waiting for page state — blob still too small (' + raw.length + ' chars). Try enabling subtitles (CC) in the ARD player first, then click "Translate This Video" again.');
-        } else {
-          done(false, 'timed out waiting for page state — blob is large but does not contain current content ID');
-        }
-      }, maxWaitMs);
     });
   }
 
@@ -264,50 +258,60 @@
   }
 
   async function handleDiscover() {
-    // If the page state hasn't been populated yet, or it contains stale
-    // data from a previous SPA navigation, wait for it to update.
-    // Since mid-2025, ARD often only populates subtitle metadata after
-    // the user enables subtitles (CC) in the player — we auto-click the
-    // CC button if it's off, and the MutationObserver catches the data
-    // once it loads.
-    var raw = (document.getElementById('fetchedContextValue') || {}).textContent || '';
-    if (raw.length < 100 || !pageDataMatchesCurrentVideo(raw)) {
-      // Auto-enable CC so subtitle metadata loads into #fetchedContextValue.
-      tryEnableSubtitles();
-      console.log('[subtitle-discover] page state not ready (' + raw.length + ' chars, matches current: ' + pageDataMatchesCurrentVideo(raw) + ') — waiting (up to 60s)…');
-      var populated = await waitForPageState();
-      if (!populated) {
-        return { ok: false, error: 'Subtitle data not found. Try enabling subtitles (CC) in the ARD player, then click "Translate This Video" again.' };
-      }
-      console.log('[subtitle-discover] page state populated and verified');
+    // The subtitle URL can come from two places:
+    //   1. #fetchedContextValue (page-data blob) — has content-ID matching.
+    //   2. The performance resource buffer — the player fetches the
+    //      subtitle XML directly, which shows up as a resource entry.
+    // We try (1) first, then fall back to (2).  If neither is ready,
+    // auto-enable CC and wait for either to appear.
+    var subtitleUrl = null;
+    var source = null;
+
+    // Try the page-data blob first (precise content-ID matching).
+    var result = extractSubtitleUrl();
+    if (result.url) {
+      subtitleUrl = result.url;
+      source = 'page-data';
     }
 
-    var result = extractSubtitleUrl();
-
-    if (!result.url) {
-      var errMsg;
-      if (result.reason === 'NO_ELEMENT') {
-        errMsg = 'No #fetchedContextValue element on page (not a video page, or page not fully loaded?)';
-      } else if (result.reason === 'NO_MATCH') {
-        errMsg = 'No subtitle URL found in page data — this video may not have subtitles available';
-      } else if (result.reason === 'TOO_SMALL' || result.reason === 'TOO_SMALL_TIMEOUT') {
-        errMsg = 'Page data not yet populated — try again in a moment (ARD lazy-loads page state)';
+    if (!subtitleUrl) {
+      // The subtitle may already have been fetched (CC already on).
+      subtitleUrl = findSubtitleUrlInPerformance();
+      if (subtitleUrl) {
+        source = 'performance';
       } else {
-        errMsg = 'Failed to extract subtitle URL from page';
+        // Auto-enable CC, then wait for either source.
+        tryEnableSubtitles();
+        console.log('[subtitle-discover] waiting for subtitle data (up to 60s)…');
+        var data = await waitForSubtitleData();
+        if (data.source === 'performance') {
+          subtitleUrl = data.url;
+          source = 'performance';
+        } else if (data.source === 'blob') {
+          var r2 = extractSubtitleUrl();
+          if (r2.url) {
+            subtitleUrl = r2.url;
+            source = 'page-data';
+          }
+        }
       }
+    }
+
+    if (!subtitleUrl) {
+      var errMsg = 'Subtitle data not found. The video may not have subtitles available, or the player has not loaded them. Try enabling subtitles (CC) in the ARD player and click "Translate This Video" again.';
       console.warn('[subtitle-discover] ' + errMsg);
       return { ok: false, error: errMsg };
     }
 
-    console.log('[subtitle-discover] DISCOVER request — subtitle URL:', result.url);
+    console.log('[subtitle-discover] subtitle URL (' + source + '):', subtitleUrl);
 
-    var cues = await fetchAndParse(result.url);
+    var cues = await fetchAndParse(subtitleUrl);
     console.log('[subtitle-discover] parsed', cues.length, 'cues');
 
     // Turn CC back off so ARD's native subtitles don't overlap with the overlay.
     tryDisableSubtitles();
 
-    return { ok: true, cues: cues, subtitleUrl: result.url };
+    return { ok: true, cues: cues, subtitleUrl: subtitleUrl };
   }
 
   // --- Message listener --------------------------------------------------
