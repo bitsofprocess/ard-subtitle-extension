@@ -6,6 +6,20 @@ Chrome extension that overlays clickable German subtitles (with English translat
 
 Both German and English subtitles appear simultaneously. Click any word for a contextual gloss popup. Use the 🇩🇪/🇬🇧 toggles in the popup to show or hide each language.
 
+## Demo
+
+**Both languages overlaid on the video:**
+
+![German and English subtitles overlaid on an ARD video](assets/both.gif)
+
+**Click any word for a contextual gloss:**
+
+![Word-level gloss popup](assets/gloss.gif)
+
+**Hover to reveal a hidden language:**
+
+![Hover reveals the hidden language](assets/hover.gif)
+
 ## How it works
 
 ### Streamlined import (primary)
